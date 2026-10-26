@@ -38,6 +38,20 @@
 - Pages now start fresh on every route change (fixed stale state between sound drills).
 - 26 unit tests.
 
+## Voice (2026-10-26)
+- Azure HD voices by default (fallback to standard), tutor speaks in longer stretches, browser voices
+  awaited and ranked with a picker (test mode). Edge "Online (Natural)" voices recommended until Azure.
+
+## Batch 3 (2026-10-26)
+- Tutor memory: facts the learner mentions, recent topics, phrases and mistakes in progress go into the
+  tutor's instructions; viewable and deletable in Settings; can be switched off.
+- Debate (`/debate`), phone-call simulator with phone-line sound and call screen (`/phone`), small talk and
+  networking (`/smalltalk`), mock interview from a pasted job ad and CV (`/interview-prep`): all run in
+  the tutor with their own instructions, endings and report focus.
+- Listen and retell (`/retell`), monthly accent check-up with per-sound history (`/checkup`), car mode
+  (`/car`, eyes-free, wake lock), idiom of the day (`/idiom`, 50 idioms), stress and linking marks in
+  shadowing, new XP bonuses and 4 badges. 30 unit tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.
@@ -45,9 +59,10 @@
 - Install-to-home-screen on the phone.
 - Arabic recognition for "Say it better" and the intonation graph on real recordings (need Azure + mic).
 - Passing a level in the fast-track test (needs real speech; logic is unit-tested).
+- HD voices on the user's Azure resource; phone-line filter on real Azure audio; car mode on a phone.
 
 ## Owner actions
 1. Create Firebase project (Google sign-in, Firestore, Blaze + Storage, rules), copy web config.
 2. Create Azure Speech resource, copy key and region.
 3. Create Anthropic API key; optionally pick a cheaper TUTOR_MODEL.
-4. Deploy to Vercel once the keys exist (repo: github.com/00-MJ-Built-with-AI/speakly).
+4. Deploy to Vercel once the keys exist (repo: github.com/00-MJ-Built-with-AI/26.10-English-Speakly).
