@@ -11,6 +11,9 @@ import {
   GenShadow,
   GenToeflInterview,
   GenToeflRepeat,
+  GenRetell,
+  RetellResult,
+  type RetellInput,
   GradeResult,
   ReportResult,
   TaskResult,
@@ -112,7 +115,7 @@ const TASKS: Record<string, (input: never) => Promise<unknown>> = {
   report: (i: ReportInput) =>
     structured(
       ReportResult,
-      `Write the end-of-conversation report for this speaking session "${i.title}" (learner level ${i.level}).\n\nTranscript (with errors already spotted per turn):\n${json(i.turns)}\n\n${i.pronunciation ? `Pronunciation data from the speech engine: ${json(i.pronunciation)}\n` : ''}${i.fluency ? `Fluency data: ${json(i.fluency)}\n` : ''}\nGive scores for this session only. Corrections: the most useful 3-8, each with what they said and a better spoken version. betterPhrases: 2-4 more natural or more advanced ways to say things they said. pronunciationTips: from the pronunciation data, specific tips for Arabic speakers (empty if no data).`,
+      `Write the end-of-conversation report for this speaking session "${i.title}" (learner level ${i.level}).${i.kind === 'job' ? ' This was a mock job interview: in strengths, corrections and nextFocus, also judge each answer\'s structure (situation, task, action, result), relevance to the role, and how confident and concise it sounded.' : i.kind === 'debate' ? ' This was a debate: also judge how well they built arguments, gave reasons and examples, and responded to counter-arguments.' : i.kind === 'phone' ? ' This was a phone call: also judge clarity, phone etiquette, and how they handled checking and confirming details.' : ''}\n\nTranscript (with errors already spotted per turn):\n${json(i.turns)}\n\n${i.pronunciation ? `Pronunciation data from the speech engine: ${json(i.pronunciation)}\n` : ''}${i.fluency ? `Fluency data: ${json(i.fluency)}\n` : ''}\nGive scores for this session only. Corrections: the most useful 3-8, each with what they said and a better spoken version. betterPhrases: 2-4 more natural or more advanced ways to say things they said. pronunciationTips: from the pronunciation data, specific tips for Arabic speakers (empty if no data).`,
       'medium',
     ),
   grade: (i: GradeInput) =>
@@ -134,7 +137,7 @@ const TASKS: Record<string, (input: never) => Promise<unknown>> = {
       'medium',
     ),
   generate: (i: GenerateInput) => {
-    const schema = { shadow: GenShadow, fast: GenFast, readaloud: GenReadAloud, 'toefl-repeat': GenToeflRepeat, 'toefl-interview': GenToeflInterview }[i.kind];
+    const schema = { shadow: GenShadow, fast: GenFast, readaloud: GenReadAloud, 'toefl-repeat': GenToeflRepeat, 'toefl-interview': GenToeflInterview, retell: GenRetell }[i.kind];
     if (!schema) throw new HttpError(400, 'Unknown kind');
     return structured(schema as z.ZodType, generatePrompt(i), 'low');
   },
@@ -156,6 +159,12 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
       'low',
     ),
   define: (i: DefineInput) => structured(DefineResult, `Explain the English phrase "${i.phrase}" simply for a ${i.level} learner and give one natural spoken example sentence.`, 'low'),
+  retell: (i: RetellInput) =>
+    structured(
+      RetellResult,
+      `Listen-and-retell exercise, learner level ${i.level}. The original passage:\n"${i.text}"\nKey points (in order): ${json(i.keyPoints)}\nThe learner's spoken retelling (speech transcript): "${i.transcript}"\n\ncovered must have exactly ${i.keyPoints.length} booleans. Paraphrasing is good; don't require the original words.`,
+      'medium',
+    ),
   weekly: (i: WeeklyInput) =>
     structured(WeeklyResult, `Write this learner's weekly speaking report from these numbers:\n${json(i)}\nBe specific, warm and brief.`, 'low'),
 };

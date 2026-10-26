@@ -70,6 +70,8 @@ export interface SpeakOptions {
   voice?: string;
   /** Browser voice name (test mode). Empty = the most natural one available. */
   browserVoice?: string;
+  /** Sound like a phone line (call simulator). */
+  phone?: boolean;
 }
 
 export interface SpeechEngine {

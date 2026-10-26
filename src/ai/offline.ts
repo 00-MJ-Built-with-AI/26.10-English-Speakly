@@ -100,6 +100,11 @@ const GEN: GenerateOutputs = {
       'Remember that the quiet zone on the third floor closes one hour before the rest of the building.',
     ],
   },
+  retell: {
+    title: 'Team update',
+    text: "Quick update from the product team. We launched the new mobile app on Monday, and so far about four thousand people have downloaded it. The biggest complaint is that the login is slow, so the engineers are fixing that this week. Also, the marketing campaign is moving from March to April because the videos aren't ready yet. If you have feedback on the app, please send it to Sara by Friday.",
+    keyPoints: ['The new mobile app launched on Monday', 'About 4,000 downloads so far', 'Main complaint: slow login, being fixed this week', 'Marketing campaign moved from March to April', 'Send feedback to Sara by Friday'],
+  },
   'toefl-interview': {
     topic: 'Studying online',
     intro: 'A university is researching how students feel about online classes.',
@@ -180,6 +185,7 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         betterPhrases: [],
         pronunciationTips: [],
         nextFocus: ['Answer with two or three sentences each time.'],
+        learnerFacts: [],
       } as TaskMap[K][1];
     }
     case 'journal': {
@@ -205,6 +211,20 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
           { text: 'I need more time.', style: 'concise', note: '(Test mode) example' },
         ],
         phrases: [{ phrase: 'would it be possible to', meaning: 'a polite way to ask for something', example: 'Would it be possible to move the meeting?' }],
+      } as TaskMap[K][1];
+    }
+    case 'retell': {
+      const t = String(i.transcript ?? '');
+      const points = (i.keyPoints as string[]) ?? [];
+      const covered = points.map((p) => wordAccuracy(p, t) > 0.3);
+      const s = levelScore(t);
+      return {
+        covered,
+        contentScore: points.length ? Math.round((covered.filter(Boolean).length / points.length) * 100) : 0,
+        languageScore: s,
+        feedback: '(Test mode) Key points are matched by shared words only. Add the AI key for real feedback.',
+        betterRetell: String(i.text ?? ''),
+        corrections: findErrors(t),
       } as TaskMap[K][1];
     }
     case 'define':

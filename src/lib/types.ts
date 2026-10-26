@@ -1,4 +1,4 @@
-import type { CorrectionStyle, ErrorItem, Level } from '../../shared/tasks.ts';
+import type { ChatKind, CorrectionStyle, ErrorItem, Level } from '../../shared/tasks.ts';
 import type { HesitationStats } from '../engine/hesitation.ts';
 import { DEFAULT_VOICE } from '../speech/voices.ts';
 
@@ -43,6 +43,8 @@ export interface Settings {
   /** Target TOEFL speaking band, 1-6. */
   targetBand?: number;
   showGamification: boolean;
+  /** Let the tutor remember facts, topics and phrases between sessions. */
+  tutorMemory: boolean;
   /** Arabic dialect for "Say it better" (Azure locale). */
   arabicLocale: string;
 }
@@ -57,6 +59,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepRecordings: true,
   handsFree: true,
   showGamification: true,
+  tutorMemory: true,
   arabicLocale: 'ar-JO',
 };
 
@@ -78,6 +81,10 @@ export interface UserDoc {
   achievements: Record<string, number>;
   /** Running totals for achievements (attempts by kind, phrases added, ...). */
   counts: Record<string, number>;
+  /** What the tutor remembers: short facts about the learner and recent topics. */
+  memory: { facts: string[]; topics: string[] };
+  /** Saved job ad and CV for interview practice. */
+  interviewPrep?: { ad: string; cv: string };
 }
 
 export function emptyUser(name = ''): UserDoc {
@@ -94,6 +101,7 @@ export function emptyUser(name = ''): UserDoc {
     xp: 0,
     achievements: {},
     counts: {},
+    memory: { facts: [], topics: [] },
   };
 }
 
@@ -107,6 +115,7 @@ export function migrateUser(u: UserDoc): UserDoc {
     xp: u.xp ?? 0,
     achievements: u.achievements ?? {},
     counts: u.counts ?? {},
+    memory: u.memory ?? { facts: [], topics: [] },
   };
 }
 
@@ -139,7 +148,15 @@ export type AttemptKind =
   | 'better'
   | 'vocab'
   | 'fillers'
-  | 'mytext';
+  | 'mytext'
+  | 'debate'
+  | 'phone'
+  | 'retell'
+  | 'checkup'
+  | 'car'
+  | 'interview'
+  | 'smalltalk'
+  | 'idiom';
 
 export interface Mistake {
   id?: string;
@@ -172,7 +189,7 @@ export interface TutorSession {
   id?: string;
   at: number;
   title: string;
-  kind: 'free' | 'roleplay' | 'unit' | 'interview';
+  kind: ChatKind;
   turns: { role: 'tutor' | 'learner'; text: string; errors?: ErrorItem[] }[];
   report?: unknown;
   seconds: number;
@@ -211,4 +228,16 @@ export interface SavedText {
   text: string;
 }
 
-export type Collection = 'attempts' | 'mistakes' | 'recordings' | 'sessions' | 'vocab' | 'journal' | 'texts';
+/** One monthly accent check-up: scores per sound set plus overall. */
+export interface Checkup {
+  id?: string;
+  at: number;
+  pron: number;
+  accuracy: number;
+  fluency: number;
+  prosody: number | null;
+  sounds: Record<string, number>;
+  audioPath?: string;
+}
+
+export type Collection = 'attempts' | 'mistakes' | 'recordings' | 'sessions' | 'vocab' | 'journal' | 'texts' | 'checkups';

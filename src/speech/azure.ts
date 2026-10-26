@@ -3,6 +3,7 @@ import { speechToken } from '../lib/api.ts';
 import { micStream, VoiceRecorder } from './mic.ts';
 import { combine, typedAssessment, type Segment } from './score.ts';
 import { DEFAULT_VOICE, isHdVoice, standardVoiceFor } from './voices.ts';
+import { phoneLine } from './fx.ts';
 import {
   ListenCancelled,
   type Assessment,
@@ -268,6 +269,7 @@ export class AzureEngine implements SpeechEngine {
       this.audio.src = url;
       this.audio.playbackRate = isHdVoice(this.voiceId(opts)) ? (opts.rate ?? 1) : 1;
       this.audio.preservesPitch = true;
+      phoneLine(this.audio, Boolean(opts.phone));
       this.audio.onended = () => resolve();
       this.audio.onerror = () => resolve();
       this.audio.play().catch(() => resolve());

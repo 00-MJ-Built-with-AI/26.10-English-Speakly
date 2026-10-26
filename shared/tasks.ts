@@ -26,15 +26,31 @@ export interface Scenario {
 
 export type CorrectionStyle = 'light' | 'every' | 'end';
 
+export type ChatKind = 'free' | 'roleplay' | 'unit' | 'interview' | 'debate' | 'phone' | 'job' | 'smalltalk';
+
+/** What the tutor remembers about the learner between sessions. */
+export interface TutorMemory {
+  facts: string[];
+  topics: string[];
+  /** Phrases the learner is learning; the tutor makes chances to use them. */
+  phrases: string[];
+  /** Corrected forms of mistakes the learner often makes. */
+  mistakes: string[];
+}
+
 export interface ChatInput {
   level: Level;
-  kind: 'free' | 'roleplay' | 'unit' | 'interview';
+  kind: ChatKind;
   topic?: string;
   scenario?: Scenario;
   targets?: { grammar?: string; functions?: string[]; vocab?: string[] };
   goals: string[];
   correction: CorrectionStyle;
   history: ChatLine[];
+  memory?: TutorMemory;
+  debate?: { motion: string; side: 'for' | 'against' };
+  /** Job interview: the job ad and the learner's CV. */
+  job?: { ad: string; cv: string };
 }
 
 // ---- check: one thing the learner said ----
@@ -73,11 +89,15 @@ export const ReportResult = z.object({
   betterPhrases: z.array(z.object({ instead: z.string(), try: z.string() })),
   pronunciationTips: z.array(z.string()),
   nextFocus: z.array(z.string()).describe('2-3 concrete things to practise next'),
+  learnerFacts: z
+    .array(z.string())
+    .describe('New, lasting facts the learner shared about their life, work, plans or preferences, short third-person notes like "Works as a product manager in Dubai". Empty if none.'),
 });
 export type ReportResult = z.infer<typeof ReportResult>;
 export interface ReportInput {
   level: Level;
   title: string;
+  kind?: ChatKind;
   turns: (ChatLine & { errors?: ErrorItem[] })[];
   pronunciation?: { score: number; weakWords: string[]; weakSounds: string[] };
   fluency?: { wordsPerMinute: number; avgStartDelayMs: number; longPauses: number };
@@ -147,8 +167,13 @@ export const GenFast = z.object({
 export const GenReadAloud = z.object({ title: z.string(), text: z.string() });
 export const GenToeflRepeat = z.object({ topic: z.string(), sentences: z.array(z.string()) });
 export const GenToeflInterview = z.object({ topic: z.string(), intro: z.string(), questions: z.array(z.string()) });
+export const GenRetell = z.object({
+  title: z.string(),
+  text: z.string().describe('What the speaker says, as natural spoken American English'),
+  keyPoints: z.array(z.string()).describe('3-5 main points a good retelling must include'),
+});
 
-export type GenerateKind = 'shadow' | 'fast' | 'readaloud' | 'toefl-repeat' | 'toefl-interview';
+export type GenerateKind = 'shadow' | 'fast' | 'readaloud' | 'toefl-repeat' | 'toefl-interview' | 'retell';
 export interface GenerateInput {
   kind: GenerateKind;
   level: Level;
@@ -162,6 +187,24 @@ export interface GenerateOutputs {
   readaloud: z.infer<typeof GenReadAloud>;
   'toefl-repeat': z.infer<typeof GenToeflRepeat>;
   'toefl-interview': z.infer<typeof GenToeflInterview>;
+  retell: z.infer<typeof GenRetell>;
+}
+
+// ---- retell: listen, then retell in your own words ----
+export const RetellResult = z.object({
+  covered: z.array(z.boolean()).describe('For each key point in order: did the retelling include it (paraphrase is fine)?'),
+  contentScore: score,
+  languageScore: score,
+  feedback: z.string().describe('2-3 sentences on content and language'),
+  betterRetell: z.string().describe('A model retelling at the learner level plus one, about the same length as theirs'),
+  corrections: z.array(ErrorItem),
+});
+export type RetellResult = z.infer<typeof RetellResult>;
+export interface RetellInput {
+  level: Level;
+  text: string;
+  keyPoints: string[];
+  transcript: string;
 }
 
 // ---- weekly: the weekly summary ----
@@ -245,5 +288,6 @@ export interface TaskMap {
   journal: [JournalInput, JournalResult];
   better: [BetterInput, BetterResult];
   define: [DefineInput, DefineResult];
+  retell: [RetellInput, RetellResult];
 }
 export type TaskName = keyof TaskMap;
