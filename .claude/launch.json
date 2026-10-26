@@ -1,0 +1,7 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "speakly", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 5190 },
+    { "name": "speakly-release", "runtimeExecutable": "npm", "runtimeArgs": ["run", "preview"], "port": 4190 }
+  ]
+}

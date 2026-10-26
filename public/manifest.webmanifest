@@ -1,0 +1,12 @@
+{
+  "name": "Speakly",
+  "short_name": "Speakly",
+  "description": "Practise speaking English from A1 to C2.",
+  "start_url": "/#/today",
+  "display": "standalone",
+  "background_color": "#e9f3ff",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
