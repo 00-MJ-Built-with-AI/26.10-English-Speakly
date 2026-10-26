@@ -1,22 +1,25 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { browserVoices } from '../../speech/browser.ts';
+import { AZURE_VOICES } from '../../speech/voices.ts';
 import { BUILT_AT } from '../../config.ts';
 import { useApp } from '../../lib/store.tsx';
 import { emptyUser, type CorrectionStyle, type Settings } from '../../lib/types.ts';
 import { Icon } from '../components/Icon.tsx';
 import { useSpeak } from '../components/speaking.tsx';
 
-const VOICES: [string, string][] = [
-  ['en-US-AvaMultilingualNeural', 'Ava (female, warm)'],
-  ['en-US-AndrewMultilingualNeural', 'Andrew (male, warm)'],
-  ['en-US-EmmaMultilingualNeural', 'Emma (female, bright)'],
-  ['en-US-BrianMultilingualNeural', 'Brian (male, casual)'],
-  ['en-US-JennyNeural', 'Jenny (female, clear)'],
-  ['en-US-GuyNeural', 'Guy (male, newsy)'],
-];
+/** English voices the browser offers, most natural first (used until Azure is connected). */
+function useBrowserVoices(active: boolean) {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  useEffect(() => {
+    if (active) browserVoices().then(setVoices);
+  }, [active]);
+  return voices;
+}
 
 export function SettingsPage() {
   const { user, update, status, repo, account, signOut, engine } = useApp();
   const { speak } = useSpeak();
+  const browserVoiceList = useBrowserVoices(engine.kind !== 'azure');
   const [exporting, setExporting] = useState(false);
   const s = user.settings;
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => update((u) => (u.settings[k] = v));
@@ -51,18 +54,44 @@ export function SettingsPage() {
         <label className="field">
           <span>Tutor voice</span>
           <div className="row" style={{ flexWrap: 'nowrap' }}>
-            <select value={s.voice} onChange={(e) => set('voice', e.target.value)} disabled={engine.kind !== 'azure'}>
-              {VOICES.map(([v, label]) => (
-                <option key={v} value={v}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            {engine.kind === 'azure' ? (
+              <select value={s.voice} onChange={(e) => set('voice', e.target.value)}>
+                <optgroup label="Most natural (HD)">
+                  {AZURE_VOICES.filter((v) => v.hd).map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Standard">
+                  {AZURE_VOICES.filter((v) => !v.hd).map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.label}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            ) : (
+              <select value={s.browserVoice ?? ''} onChange={(e) => update((u) => (u.settings.browserVoice = e.target.value || undefined))}>
+                <option value="">Most natural available</option>
+                {browserVoiceList.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <button className="btn small" onClick={() => speak("Hi! I'm your Speakly tutor. Let's practise speaking together.")}>
               <Icon name="volume" size={16} /> Test
             </button>
           </div>
-          {engine.kind !== 'azure' && <div className="small muted">Natural voices need Azure Speech. Using your browser's voice for now.</div>}
+          {engine.kind === 'azure' ? (
+            <div className="small muted">HD voices sound the most human. If your Azure region doesn't offer them, the app switches to the standard voice automatically.</div>
+          ) : (
+            <div className="small muted">
+              You're hearing your browser's own voice until Azure Speech is connected. For a much better free voice now, open Speakly in Microsoft Edge and pick one marked "Online (Natural)".
+            </div>
+          )}
         </label>
         <label className="field" style={{ marginTop: 12 }}>
           <span>Speaking speed: {s.speechRate.toFixed(2)}×</span>

@@ -66,7 +66,10 @@ export interface ListenHandle {
 
 export interface SpeakOptions {
   rate?: number;
+  /** Azure voice id. */
   voice?: string;
+  /** Browser voice name (test mode). Empty = the most natural one available. */
+  browserVoice?: string;
 }
 
 export interface SpeechEngine {

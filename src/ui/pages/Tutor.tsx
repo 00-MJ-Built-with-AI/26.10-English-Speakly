@@ -124,7 +124,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     setPhase('thinking');
     setError(null);
     abort.current = new AbortController();
-    const q = new SpeakQueue(engine, { voice: user.settings.voice, rate: user.settings.speechRate });
+    const q = new SpeakQueue(engine, { voice: user.settings.voice, browserVoice: user.settings.browserVoice, rate: user.settings.speechRate });
     queue.current = q;
     let buffer = '';
     let full = '';

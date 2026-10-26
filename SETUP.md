@@ -31,7 +31,11 @@ for the live site; **never commit them**.
 ## 2. Azure AI Speech: pronunciation scoring and the tutor's voice
 
 1. Go to <https://portal.azure.com> (a free account works) → **Create a resource** → search **Speech** (Azure AI services) → **Create**.
-2. Region: **East US** or **West Europe** (pronunciation assessment with prosody is available there). Pricing tier: **Free F0** to start.
+2. Region: **East US** or **West Europe** (pronunciation assessment with prosody and the most natural
+   "HD" voices are available there). Pricing tier: **Free F0** to start. The tutor uses an HD voice by
+   default; if your resource can't use HD voices, the app switches to the standard voice automatically
+   (Settings lets you pick either). HD voices cost more per character than standard ones; check
+   Azure's pricing page.
 3. When it's created, open it → **Keys and Endpoint**. Copy **Key 1** and the **Location/Region**:
    ```
    AZURE_SPEECH_KEY=...

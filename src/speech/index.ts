@@ -1,7 +1,7 @@
 import { serverStatus } from '../lib/api.ts';
 import { AzureEngine } from './azure.ts';
 import { BrowserEngine } from './browser.ts';
-import type { SpeechEngine } from './types.ts';
+import type { SpeakOptions, SpeechEngine } from './types.ts';
 
 export * from './types.ts';
 
@@ -13,7 +13,7 @@ export function getEngine(): Promise<SpeechEngine> {
   return engine;
 }
 
-/** Sentence-by-sentence speaking: synthesises ahead so the tutor sounds continuous. */
+/** Speaks the tutor reply as it streams in. */
 export class SpeakQueue {
   private queue: string[] = [];
   private running?: Promise<void>;
@@ -21,19 +21,23 @@ export class SpeakQueue {
 
   constructor(
     private engine: SpeechEngine,
-    private opts: { voice?: string; rate?: number },
+    private opts: SpeakOptions,
   ) {}
 
   push(sentence: string): void {
     if (this.stopped || !sentence.trim()) return;
     this.queue.push(sentence);
-    this.engine.prefetch(sentence, this.opts);
     this.running ??= this.run();
   }
 
+  /**
+   * The first sentence starts right away; everything that arrives while it plays is spoken as one
+   * stretch, so the voice keeps a natural flow instead of restarting its melody every sentence.
+   */
   private async run(): Promise<void> {
     while (this.queue.length && !this.stopped) {
-      await this.engine.speak(this.queue.shift()!, this.opts);
+      const chunk = this.queue.splice(0).join(' ');
+      await this.engine.speak(chunk, this.opts);
     }
     this.running = undefined;
   }

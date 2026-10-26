@@ -1,6 +1,7 @@
 import { words as toWords } from '../engine/text.ts';
 import { micStream, VoiceRecorder } from './mic.ts';
 import { combine, typedAssessment } from './score.ts';
+import { browserVoiceRank } from './voices.ts';
 import { ListenCancelled, type Assessment, type ListenHandle, type ListenOptions, type SpeakOptions, type SpeechEngine, type WordScore } from './types.ts';
 
 interface Rec {
@@ -144,9 +145,9 @@ export class BrowserEngine implements SpeechEngine {
     return handle;
   }
 
-  private voiceFor(): SpeechSynthesisVoice | undefined {
-    const vs = speechSynthesis.getVoices().filter((v) => v.lang === 'en-US');
-    return vs.find((v) => /natural|online|google/i.test(v.name)) ?? vs[0];
+  private async voiceFor(name?: string): Promise<SpeechSynthesisVoice | undefined> {
+    const vs = await browserVoices();
+    return (name ? vs.find((v) => v.name === name) : undefined) ?? vs[0];
   }
 
   prefetch(): void {}
@@ -155,14 +156,14 @@ export class BrowserEngine implements SpeechEngine {
     return null; // the browser's own voices can't be recorded
   }
 
-  speak(text: string, opts: SpeakOptions = {}): Promise<void> {
+  async speak(text: string, opts: SpeakOptions = {}): Promise<void> {
     this.stopSpeaking();
-    if (typeof speechSynthesis === 'undefined') return Promise.resolve();
+    if (typeof speechSynthesis === 'undefined') return;
+    const v = await this.voiceFor(opts.browserVoice);
     return new Promise((resolve) => {
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US';
+      u.lang = v?.lang ?? 'en-US';
       u.rate = opts.rate ?? 1;
-      const v = this.voiceFor();
       if (v) u.voice = v;
       this.finishSpeaking = resolve;
       u.onend = () => resolve();
@@ -178,4 +179,27 @@ export class BrowserEngine implements SpeechEngine {
     this.finishSpeaking?.();
     this.finishSpeaking = undefined;
   }
+}
+
+let voicesReady: Promise<SpeechSynthesisVoice[]> | undefined;
+
+/**
+ * English voices, most natural first. Browsers load voices asynchronously; asking too early
+ * returns nothing and falls back to the default (often robotic) voice, so wait for them.
+ */
+export function browserVoices(): Promise<SpeechSynthesisVoice[]> {
+  if (typeof speechSynthesis === 'undefined') return Promise.resolve([]);
+  voicesReady ??= new Promise((resolve) => {
+    const done = () => {
+      const all = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
+      resolve(all.sort((a, b) => browserVoiceRank(b) - browserVoiceRank(a)));
+    };
+    if (speechSynthesis.getVoices().length) return done();
+    speechSynthesis.addEventListener('voiceschanged', done, { once: true });
+    setTimeout(done, 2000);
+  });
+  return voicesReady.then((vs) => {
+    if (!vs.length) voicesReady = undefined; // try again next time
+    return vs;
+  });
 }

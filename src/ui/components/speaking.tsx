@@ -110,18 +110,18 @@ export function useSpeak() {
     async (text: string, rate?: number) => {
       setSpeaking(true);
       try {
-        await engine.speak(text, { voice: user.settings.voice, rate: rate ?? user.settings.speechRate });
+        await engine.speak(text, { voice: user.settings.voice, browserVoice: user.settings.browserVoice, rate: rate ?? user.settings.speechRate });
       } catch (e) {
         console.error(e);
       } finally {
         setSpeaking(false);
       }
     },
-    [engine, user.settings.voice, user.settings.speechRate],
+    [engine, user.settings.voice, user.settings.browserVoice, user.settings.speechRate],
   );
   const prefetch = useCallback(
-    (text: string, rate?: number) => engine.prefetch(text, { voice: user.settings.voice, rate: rate ?? user.settings.speechRate }),
-    [engine, user.settings.voice, user.settings.speechRate],
+    (text: string, rate?: number) => engine.prefetch(text, { voice: user.settings.voice, browserVoice: user.settings.browserVoice, rate: rate ?? user.settings.speechRate }),
+    [engine, user.settings.voice, user.settings.browserVoice, user.settings.speechRate],
   );
   const stop = useCallback(() => {
     engine.stopSpeaking();

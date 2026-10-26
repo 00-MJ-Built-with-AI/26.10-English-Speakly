@@ -2,6 +2,7 @@ import type * as SDK from 'microsoft-cognitiveservices-speech-sdk';
 import { speechToken } from '../lib/api.ts';
 import { micStream, VoiceRecorder } from './mic.ts';
 import { combine, typedAssessment, type Segment } from './score.ts';
+import { DEFAULT_VOICE, isHdVoice, standardVoiceFor } from './voices.ts';
 import {
   ListenCancelled,
   type Assessment,
@@ -195,14 +196,26 @@ export class AzureEngine implements SpeechEngine {
     return handle;
   }
 
-  private ssml(text: string, opts: SpeakOptions): string {
+  /** Set when this Azure resource can't use HD voices (region or tier); then standard voices are used. */
+  private noHd = false;
+
+  private voiceId(opts: SpeakOptions): string {
+    const v = opts.voice ?? DEFAULT_VOICE;
+    return this.noHd ? standardVoiceFor(v) : v;
+  }
+
+  private ssml(text: string, voice: string, rate: number): string {
     const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const rate = Math.round(((opts.rate ?? 1) - 1) * 100);
-    return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US"><voice name="${opts.voice ?? 'en-US-AvaMultilingualNeural'}"><prosody rate="${rate >= 0 ? '+' : ''}${rate}%">${esc}</prosody></voice></speak>`;
+    // HD voices don't accept <prosody>; their speed is changed at playback instead.
+    if (isHdVoice(voice)) return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US"><voice name="${voice}" parameters="temperature=0.8">${esc}</voice></speak>`;
+    const pct = Math.round((rate - 1) * 100);
+    return `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US"><voice name="${voice}"><prosody rate="${pct >= 0 ? '+' : ''}${pct}%">${esc}</prosody></voice></speak>`;
   }
 
   private synth(text: string, opts: SpeakOptions): Promise<string> {
-    const key = `${opts.voice}|${opts.rate}|${text}`;
+    const voice = this.voiceId(opts);
+    const rate = isHdVoice(voice) ? 1 : (opts.rate ?? 1);
+    const key = `${voice}|${rate}|${text}`;
     let hit = this.cache.get(key);
     if (!hit) {
       hit = (async () => {
@@ -212,7 +225,7 @@ export class AzureEngine implements SpeechEngine {
         const synth = new sdk.SpeechSynthesizer(cfg, null as unknown as SDK.AudioConfig);
         const data = await new Promise<ArrayBuffer>((resolve, reject) =>
           synth.speakSsmlAsync(
-            this.ssml(text, opts),
+            this.ssml(text, voice, rate),
             (r) => {
               synth.close();
               if (r.reason === sdk.ResultReason.SynthesizingAudioCompleted) resolve(r.audioData);
@@ -226,7 +239,13 @@ export class AzureEngine implements SpeechEngine {
         );
         return URL.createObjectURL(new Blob([data], { type: 'audio/mpeg' }));
       })();
-      hit.catch(() => this.cache.delete(key));
+      hit = hit.catch((err) => {
+        this.cache.delete(key);
+        if (!isHdVoice(voice)) throw err;
+        console.warn('HD voice unavailable on this Azure resource; using the standard voice.', err);
+        this.noHd = true;
+        return this.synth(text, opts);
+      });
       this.cache.set(key, hit);
       if (this.cache.size > 200) this.cache.delete(this.cache.keys().next().value!);
     }
@@ -247,6 +266,8 @@ export class AzureEngine implements SpeechEngine {
     await new Promise<void>((resolve) => {
       this.finishSpeaking = resolve;
       this.audio.src = url;
+      this.audio.playbackRate = isHdVoice(this.voiceId(opts)) ? (opts.rate ?? 1) : 1;
+      this.audio.preservesPitch = true;
       this.audio.onended = () => resolve();
       this.audio.onerror = () => resolve();
       this.audio.play().catch(() => resolve());

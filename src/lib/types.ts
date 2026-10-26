@@ -1,5 +1,6 @@
 import type { CorrectionStyle, ErrorItem, Level } from '../../shared/tasks.ts';
 import type { HesitationStats } from '../engine/hesitation.ts';
+import { DEFAULT_VOICE } from '../speech/voices.ts';
 
 export type { Level, CorrectionStyle, ErrorItem };
 
@@ -27,6 +28,8 @@ export interface UnitState {
 
 export interface Settings {
   voice: string;
+  /** Browser voice name used when Azure isn't connected. */
+  browserVoice?: string;
   speechRate: number;
   /** Seconds of silence before the tutor treats your turn as finished. */
   turnPause: number;
@@ -45,7 +48,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  voice: 'en-US-AvaMultilingualNeural',
+  voice: DEFAULT_VOICE,
   speechRate: 1,
   turnPause: 1.6,
   liveTranscript: true,
@@ -99,7 +102,8 @@ export function migrateUser(u: UserDoc): UserDoc {
   return {
     ...emptyUser(u.name),
     ...u,
-    settings: { ...DEFAULT_SETTINGS, ...u.settings },
+    // The first default voice was the standard Ava; move to the more natural HD Ava.
+    settings: { ...DEFAULT_SETTINGS, ...u.settings, voice: u.settings?.voice === 'en-US-AvaMultilingualNeural' ? DEFAULT_VOICE : (u.settings?.voice ?? DEFAULT_VOICE) },
     xp: u.xp ?? 0,
     achievements: u.achievements ?? {},
     counts: u.counts ?? {},

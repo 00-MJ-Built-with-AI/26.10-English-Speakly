@@ -144,3 +144,18 @@ describe('achievements and XP', () => {
     expect(levelFromXp(200)).toEqual({ level: 3, from: 200, to: 450 });
   });
 });
+
+describe('voices', () => {
+  it('maps HD voices to a standard fallback and ranks browser voices', async () => {
+    const { standardVoiceFor, isHdVoice, browserVoiceRank } = await import('../src/speech/voices.ts');
+    expect(isHdVoice('en-US-Ava:DragonHDLatestNeural')).toBe(true);
+    expect(standardVoiceFor('en-US-Emma2:DragonHDLatestNeural')).toBe('en-US-EmmaMultilingualNeural');
+    expect(standardVoiceFor('en-US-Davis:DragonHDLatestNeural')).toBe('en-US-DavisNeural');
+    expect(standardVoiceFor('en-US-JennyNeural')).toBe('en-US-JennyNeural');
+    const natural = browserVoiceRank({ name: 'Microsoft Ava Online (Natural) - English (United States)', lang: 'en-US' });
+    const google = browserVoiceRank({ name: 'Google US English', lang: 'en-US' });
+    const david = browserVoiceRank({ name: 'Microsoft David - English (United States)', lang: 'en-US' });
+    expect(natural).toBeGreaterThan(google);
+    expect(google).toBeGreaterThan(david);
+  });
+});
