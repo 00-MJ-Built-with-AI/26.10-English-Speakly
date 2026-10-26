@@ -50,6 +50,7 @@ export function Review() {
     if (!shown || !ok) {
       const next = review(m, ok && !shown);
       await repo.update('mistakes', m.id, { box: next.box, due: next.due, reps: next.reps, lapses: next.lapses });
+      if (next.box >= LEARNED_BOX && m.box < LEARNED_BOX) app.update((u) => (u.counts.mistakesLearned = (u.counts.mistakesLearned ?? 0) + 1));
       setStats((s) => (ok && !shown ? { ...s, right: s.right + 1 } : { ...s, wrong: s.wrong + 1 }));
     }
   }

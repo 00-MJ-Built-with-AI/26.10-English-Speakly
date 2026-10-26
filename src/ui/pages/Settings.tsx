@@ -101,6 +101,27 @@ export function SettingsPage() {
           <span>Daily goal: {s.dailyGoalMinutes} minutes</span>
           <input type="range" min={10} max={60} step={5} value={s.dailyGoalMinutes} onChange={(e) => set('dailyGoalMinutes', Number(e.target.value))} />
         </label>
+        <div className="grid grid-2" style={{ marginTop: 12 }}>
+          <label className="field">
+            <span>TOEFL exam date</span>
+            <input type="date" value={s.examDate ?? ''} onChange={(e) => update((u) => (u.settings.examDate = e.target.value || undefined))} />
+          </label>
+          <label className="field">
+            <span>Target speaking band</span>
+            <select value={s.targetBand ?? ''} onChange={(e) => update((u) => (u.settings.targetBand = e.target.value ? Number(e.target.value) : undefined))}>
+              <option value="">Not set</option>
+              {[3, 3.5, 4, 4.5, 5, 5.5, 6].map((b) => (
+                <option key={b} value={b}>
+                  {b.toFixed(1)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="toggle">
+          <span>Show XP and badges</span>
+          <input type="checkbox" checked={s.showGamification} onChange={(e) => set('showGamification', e.target.checked)} />
+        </div>
         <div className="toggle">
           <span>Keep my recordings</span>
           <input type="checkbox" checked={s.keepRecordings} onChange={(e) => set('keepRecordings', e.target.checked)} />

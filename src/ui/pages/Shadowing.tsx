@@ -6,16 +6,18 @@ import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
+import { IntonationGraph } from '../components/IntonationGraph.tsx';
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
-export function Shadowing({ unitId }: { unitId?: string }) {
+/** Shadowing of unit sentences, AI sentences, or the learner's own text (`custom`). */
+export function Shadowing({ unitId, custom, onBack }: { unitId?: string; custom?: { title: string; sentences: string[] }; onBack?: () => void }) {
   const app = useApp();
-  const unit = unitById(unitId ?? '') ?? currentUnit(app.user);
+  const unit = custom ? undefined : (unitById(unitId ?? '') ?? currentUnit(app.user));
   const level = unit?.level ?? workingLevel(app.user);
-  const [sentences, setSentences] = useState<string[]>(unit?.shadow ?? []);
-  const [source, setSource] = useState<'unit' | 'ai'>('unit');
+  const [sentences, setSentences] = useState<string[]>(custom?.sentences ?? unit?.shadow ?? []);
+  const [source, setSource] = useState<'unit' | 'ai' | 'custom'>(custom ? 'custom' : 'unit');
   const [loading, setLoading] = useState(false);
   const [i, setI] = useState(0);
   const [hide, setHide] = useState(false);
@@ -59,8 +61,8 @@ export function Shadowing({ unitId }: { unitId?: string }) {
     const real = all.filter((a) => a.engine !== 'typed');
     await app.logAttempt({
       at: Date.now(),
-      kind: 'shadow',
-      title: `Shadowing${unit && source === 'unit' ? `: ${unit.title}` : ''}`,
+      kind: source === 'custom' ? 'mytext' : 'shadow',
+      title: source === 'custom' ? `My text: ${custom!.title}` : `Shadowing${unit && source === 'unit' ? `: ${unit.title}` : ''}`,
       unitId: unit?.id,
       seconds: elapsed(),
       scores: real.length ? { pronunciation: avg(real.map((a) => a.pron)), fluency: avg(real.map((a) => a.fluency)) } : {},
@@ -87,14 +89,21 @@ export function Shadowing({ unitId }: { unitId?: string }) {
           <p className="muted small">Words under 60 were added to your review list.</p>
         </div>
         <div className="row">
+          {onBack && (
+            <button className="btn primary" onClick={onBack}>
+              Back to my texts
+            </button>
+          )}
           {unit && (
             <a className="btn primary" href={href(`/unit/${unit.id}`)}>
               Back to {unit.title}
             </a>
           )}
-          <button className="btn" onClick={newSet}>
-            New sentences
-          </button>
+          {!custom && (
+            <button className="btn" onClick={newSet}>
+              New sentences
+            </button>
+          )}
         </div>
       </div>
     );
@@ -104,18 +113,26 @@ export function Shadowing({ unitId }: { unitId?: string }) {
     <div className="stack">
       <div className="spread">
         <div>
-          <h1>Shadowing</h1>
+          {onBack && (
+            <button className="btn ghost small" onClick={onBack} style={{ paddingLeft: 0 }}>
+              ← My texts
+            </button>
+          )}
+          <h1>{custom ? custom.title : 'Shadowing'}</h1>
           <p className="muted small">
-            Listen, then repeat immediately, copying the rhythm and melody. {unit && source === 'unit' ? `${unit.level} · ${unit.title}` : `${level} · new sentences`}
+            Listen, then repeat immediately, copying the rhythm and melody.{' '}
+            {custom ? 'Your own text.' : unit && source === 'unit' ? `${unit.level} · ${unit.title}` : `${level} · new sentences`}
           </p>
         </div>
         <div className="row">
           <label className="row small">
             <input type="checkbox" checked={hide} onChange={(e) => setHide(e.target.checked)} /> Hide text
           </label>
-          <button className="btn small" onClick={newSet} disabled={loading}>
-            <Icon name="refresh" size={16} /> {loading ? 'Making…' : 'New sentences'}
-          </button>
+          {!custom && (
+            <button className="btn small" onClick={newSet} disabled={loading}>
+              <Icon name="refresh" size={16} /> {loading ? 'Making…' : 'New sentences'}
+            </button>
+          )}
         </div>
       </div>
       {error && <div className="banner error">{error}</div>}
@@ -146,6 +163,7 @@ export function Shadowing({ unitId }: { unitId?: string }) {
                   <Icon name="volume" size={14} /> Model
                 </button>
               </div>
+              {r.audio && r.engine !== 'typed' && <IntonationGraph text={s} userAudio={r.audio} />}
             </div>
           )}
           <MicControl

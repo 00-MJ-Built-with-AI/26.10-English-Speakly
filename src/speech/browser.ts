@@ -66,7 +66,7 @@ export class BrowserEngine implements SpeechEngine {
         }
       }
       const rec = new Ctor();
-      rec.lang = 'en-US';
+      rec.lang = opts.language ?? 'en-US';
       rec.continuous = true;
       rec.interimResults = true;
       const startedAt = performance.now();
@@ -150,6 +150,10 @@ export class BrowserEngine implements SpeechEngine {
   }
 
   prefetch(): void {}
+
+  async modelAudio(): Promise<Blob | null> {
+    return null; // the browser's own voices can't be recorded
+  }
 
   speak(text: string, opts: SpeakOptions = {}): Promise<void> {
     this.stopSpeaking();

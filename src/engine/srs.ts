@@ -9,8 +9,15 @@ export function newMistake(m: Pick<Mistake, 'kind' | 'said' | 'better' | 'why' |
   return { ...m, at: now, box: 0, due: now, reps: 0, lapses: 0 };
 }
 
+export interface SrsFields {
+  box: number;
+  due: number;
+  reps: number;
+  lapses: number;
+}
+
 /** After a review: right moves it up a box, wrong sends it back to box 1 (tomorrow). */
-export function review(m: Mistake, correct: boolean, now = Date.now()): Mistake {
+export function review<T extends SrsFields>(m: T, correct: boolean, now = Date.now()): T {
   if (correct) {
     const box = Math.min(LEARNED_BOX, m.box + 1);
     const days = box >= LEARNED_BOX ? 3650 : INTERVALS[box];

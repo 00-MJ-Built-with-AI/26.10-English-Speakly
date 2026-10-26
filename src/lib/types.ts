@@ -1,4 +1,5 @@
 import type { CorrectionStyle, ErrorItem, Level } from '../../shared/tasks.ts';
+import type { HesitationStats } from '../engine/hesitation.ts';
 
 export type { Level, CorrectionStyle, ErrorItem };
 
@@ -34,6 +35,13 @@ export interface Settings {
   dailyGoalMinutes: number;
   keepRecordings: boolean;
   handsFree: boolean;
+  /** TOEFL exam date, YYYY-MM-DD. */
+  examDate?: string;
+  /** Target TOEFL speaking band, 1-6. */
+  targetBand?: number;
+  showGamification: boolean;
+  /** Arabic dialect for "Say it better" (Azure locale). */
+  arabicLocale: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +53,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyGoalMinutes: 25,
   keepRecordings: true,
   handsFree: true,
+  showGamification: true,
+  arabicLocale: 'ar-JO',
 };
 
 export interface UserDoc {
@@ -60,6 +70,11 @@ export interface UserDoc {
   /** Practice seconds by local date (YYYY-MM-DD). */
   daily: Record<string, number>;
   toeflBand: number | null;
+  xp: number;
+  /** Achievement id -> time unlocked. */
+  achievements: Record<string, number>;
+  /** Running totals for achievements (attempts by kind, phrases added, ...). */
+  counts: Record<string, number>;
 }
 
 export function emptyUser(name = ''): UserDoc {
@@ -73,6 +88,21 @@ export function emptyUser(name = ''): UserDoc {
     sounds: {},
     daily: {},
     toeflBand: null,
+    xp: 0,
+    achievements: {},
+    counts: {},
+  };
+}
+
+/** Fills in fields added after a user document was first saved. */
+export function migrateUser(u: UserDoc): UserDoc {
+  return {
+    ...emptyUser(u.name),
+    ...u,
+    settings: { ...DEFAULT_SETTINGS, ...u.settings },
+    xp: u.xp ?? 0,
+    achievements: u.achievements ?? {},
+    counts: u.counts ?? {},
   };
 }
 
@@ -80,13 +110,32 @@ export function emptyUser(name = ''): UserDoc {
 export interface Attempt {
   id?: string;
   at: number;
-  kind: 'shadow' | 'readaloud' | 'sounds' | 'fast' | 'tutor' | 'roleplay' | 'testout' | 'toefl' | 'review' | 'lesson';
+  kind: AttemptKind;
   title: string;
   unitId?: string;
   scores: Partial<Record<Skill, number>>;
   seconds: number;
+  hesitation?: HesitationStats;
   detail?: unknown;
 }
+
+export type AttemptKind =
+  | 'shadow'
+  | 'readaloud'
+  | 'sounds'
+  | 'fast'
+  | 'tutor'
+  | 'roleplay'
+  | 'testout'
+  | 'toefl'
+  | 'review'
+  | 'lesson'
+  | 'placement'
+  | 'journal'
+  | 'better'
+  | 'vocab'
+  | 'fillers'
+  | 'mytext';
 
 export interface Mistake {
   id?: string;
@@ -125,4 +174,37 @@ export interface TutorSession {
   seconds: number;
 }
 
-export type Collection = 'attempts' | 'mistakes' | 'recordings' | 'sessions';
+/** A phrase in the personal vocabulary bank (reviewed like mistakes). */
+export interface VocabItem {
+  id?: string;
+  at: number;
+  phrase: string;
+  meaning: string;
+  example: string;
+  source: string;
+  box: number;
+  due: number;
+  reps: number;
+  lapses: number;
+}
+
+export interface JournalEntry {
+  id?: string;
+  at: number;
+  prompt: string;
+  text: string;
+  seconds: number;
+  feedback: unknown;
+  hesitation?: HesitationStats;
+  pron?: number;
+  audioPath?: string;
+}
+
+export interface SavedText {
+  id?: string;
+  at: number;
+  title: string;
+  text: string;
+}
+
+export type Collection = 'attempts' | 'mistakes' | 'recordings' | 'sessions' | 'vocab' | 'journal' | 'texts';

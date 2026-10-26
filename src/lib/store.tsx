@@ -2,10 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { applySkills } from '../engine/scoring.ts';
 import { addPractice } from '../engine/progress.ts';
 import { newMistake, sameMistake } from '../engine/srs.ts';
+import { rewardAttempt } from '../engine/gamification.ts';
 import { getEngine, type SpeechEngine } from '../speech/index.ts';
 import { serverStatus, type ServerStatus } from './api.ts';
 import type { Repo } from './repo.ts';
-import { DEFAULT_SETTINGS, emptyUser, type Attempt, type Mistake, type Recording, type UserDoc } from './types.ts';
+import { emptyUser, migrateUser, type Attempt, type Mistake, type Recording, type UserDoc, type VocabItem } from './types.ts';
 
 export interface Account {
   uid: string;
@@ -26,8 +27,17 @@ interface AppState {
   logAttempt(a: Attempt, opts?: { skillWeight?: number }): Promise<void>;
   /** Add corrections to the mistake bank (skips ones already there). Returns how many were new. */
   addMistakes(items: Pick<Mistake, 'kind' | 'said' | 'better' | 'why'>[], source: string): Promise<number>;
-  saveRecording(blob: Blob | undefined, meta: Omit<Recording, 'path' | 'at'>): Promise<void>;
+  /** Saves a recording if the learner keeps recordings; returns its storage path. */
+  saveRecording(blob: Blob | undefined, meta: Omit<Recording, 'path' | 'at'>): Promise<string | undefined>;
+  /** Add phrases to the vocabulary bank (skips ones already there). Returns how many were new. */
+  addVocab(items: Pick<VocabItem, 'phrase' | 'meaning' | 'example'>[], source: string): Promise<number>;
   signOut?: () => void;
+}
+
+interface Toast {
+  id: number;
+  text: string;
+  kind: 'info' | 'badge';
 }
 
 const Ctx = createContext<AppState | null>(null);
@@ -57,7 +67,7 @@ export function AppProvider({ repo, account, signOut, children }: { repo: Repo; 
           u = emptyUser(account?.name?.split(' ')[0] ?? '');
           await repo.saveUser(u);
         }
-        u.settings = { ...DEFAULT_SETTINGS, ...u.settings };
+        u = migrateUser(u);
         if (!alive) return;
         latest.current = u;
         setUser(u);
@@ -97,15 +107,28 @@ export function AppProvider({ repo, account, signOut, children }: { repo: Repo; 
     [flush],
   );
 
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const notify = useCallback((text: string, kind: Toast['kind'] = 'info') => {
+    const id = Math.random();
+    setToasts((t) => [...t, { id, text, kind }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), kind === 'badge' ? 5000 : 2500);
+  }, []);
+
   const logAttempt = useCallback(
     async (a: Attempt, opts: { skillWeight?: number } = {}) => {
+      let reward: ReturnType<typeof rewardAttempt> | undefined;
       update((u) => {
         applySkills(u, a.scores, opts.skillWeight);
         addPractice(u, a.seconds, a.at);
+        reward = rewardAttempt(u, a);
       });
+      if (reward && latest.current?.settings.showGamification) {
+        notify(`+${reward.xp} XP`);
+        for (const ach of reward.unlocked) notify(`Achievement unlocked: ${ach.title}`, 'badge');
+      }
       await repo.add('attempts', a).catch((e) => console.error(e));
     },
-    [repo, update],
+    [repo, update, notify],
   );
 
   const addMistakes = useCallback(
@@ -127,24 +150,58 @@ export function AppProvider({ repo, account, signOut, children }: { repo: Repo; 
 
   const saveRecording = useCallback(
     async (blob: Blob | undefined, meta: Omit<Recording, 'path' | 'at'>) => {
-      if (!blob || !latest.current?.settings.keepRecordings) return;
+      if (!blob || !latest.current?.settings.keepRecordings) return undefined;
       try {
         const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
         const path = await repo.putAudio(id, blob);
         await repo.add('recordings', { ...meta, path, at: Date.now() });
+        return path;
       } catch (e) {
         console.error('recording not saved', e);
+        return undefined;
       }
     },
     [repo],
   );
 
+  const addVocab = useCallback(
+    async (items: Pick<VocabItem, 'phrase' | 'meaning' | 'example'>[], source: string) => {
+      if (!items.length) return 0;
+      const existing = await repo.list<VocabItem>('vocab', { limit: 2000 });
+      const norm = (x: string) => x.toLowerCase().replace(/[^a-z' ]/g, '').trim();
+      const seen = new Set(existing.map((v) => norm(v.phrase)));
+      let added = 0;
+      for (const it of items) {
+        const key = norm(it.phrase);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        const now = Date.now();
+        await repo.add('vocab', { ...it, source, at: now, box: 0, due: now, reps: 0, lapses: 0 } satisfies VocabItem);
+        added++;
+      }
+      if (added) update((u) => (u.counts.vocab = (u.counts.vocab ?? 0) + added));
+      return added;
+    },
+    [repo, update],
+  );
+
   const value = useMemo(
-    () => (user && status && engine ? { user, account, repo, status, engine, update, logAttempt, addMistakes, saveRecording, signOut } : null),
-    [user, account, repo, status, engine, update, logAttempt, addMistakes, saveRecording, signOut],
+    () => (user && status && engine ? { user, account, repo, status, engine, update, logAttempt, addMistakes, saveRecording, addVocab, signOut } : null),
+    [user, account, repo, status, engine, update, logAttempt, addMistakes, saveRecording, addVocab, signOut],
   );
 
   if (error) return <div className="center-screen">Could not load your progress: {error}</div>;
   if (!value) return <div className="center-screen muted">Loading…</div>;
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      <div className="toasts" aria-live="polite">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast ${t.kind}`}>
+            {t.text}
+          </div>
+        ))}
+      </div>
+    </Ctx.Provider>
+  );
 }

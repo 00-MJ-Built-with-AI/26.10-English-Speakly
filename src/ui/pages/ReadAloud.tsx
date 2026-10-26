@@ -7,11 +7,11 @@ import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
-export function ReadAloud({ unitId }: { unitId?: string }) {
+export function ReadAloud({ unitId, custom, onBack }: { unitId?: string; custom?: { title: string; text: string }; onBack?: () => void }) {
   const app = useApp();
-  const unit = unitById(unitId ?? '') ?? currentUnit(app.user);
+  const unit = custom ? undefined : (unitById(unitId ?? '') ?? currentUnit(app.user));
   const level = unit?.level ?? workingLevel(app.user);
-  const [passage, setPassage] = useState<{ title: string; text: string }>(() => ({ title: unit ? unit.title : 'Practice passage', text: (unit?.shadow ?? []).join(' ') }));
+  const [passage, setPassage] = useState<{ title: string; text: string }>(() => custom ?? { title: unit ? unit.title : 'Practice passage', text: (unit?.shadow ?? []).join(' ') });
   const [topic, setTopic] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Assessment | null>(null);
@@ -39,7 +39,7 @@ export function ReadAloud({ unitId }: { unitId?: string }) {
     if (!a) return;
     setResult(a);
     if (a.engine !== 'typed') {
-      await app.logAttempt({ at: Date.now(), kind: 'readaloud', title: `Read aloud: ${passage.title}`, unitId: unit?.id, seconds: elapsed(), scores: { pronunciation: a.pron, fluency: a.fluency } });
+      await app.logAttempt({ at: Date.now(), kind: custom ? 'mytext' : 'readaloud', title: `Read aloud: ${passage.title}`, unitId: unit?.id, seconds: elapsed(), scores: { pronunciation: a.pron, fluency: a.fluency } });
       app.saveRecording(a.audio, { title: `Read aloud: ${passage.title}`, kind: 'readaloud', seconds: Math.round(a.speechMs / 1000), text: passage.text, score: Math.round(a.pron) });
       await app.addMistakes(
         a.words.filter((w) => w.error !== 'Omission' && w.accuracy < 60).map((w) => ({ kind: 'pronunciation', said: w.word, better: w.word, why: `Pronunciation ${Math.round(w.accuracy)}/100 reading aloud` })),
@@ -51,12 +51,17 @@ export function ReadAloud({ unitId }: { unitId?: string }) {
   return (
     <div className="stack">
       <h1>Read aloud</h1>
-      <div className="card row">
+      {onBack && (
+        <button className="btn ghost small" onClick={onBack} style={{ alignSelf: 'flex-start', paddingLeft: 0 }}>
+          ← My texts
+        </button>
+      )}
+      {!custom && <div className="card row">
         <input type="text" placeholder={`Topic (optional), e.g. ${unit?.topic ?? 'a team meeting'}`} value={topic} onChange={(e) => setTopic(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
         <button className="btn" onClick={generate} disabled={loading}>
           <Icon name="refresh" size={16} /> {loading ? 'Writing…' : `New ${level} passage`}
         </button>
-      </div>
+      </div>}
       {error && <div className="banner error">{error}</div>}
       <div className="card stack">
         <div className="spread">

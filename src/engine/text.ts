@@ -68,3 +68,28 @@ export function takeSentences(buffer: string): { sentences: string[]; rest: stri
   }
   return { sentences, rest: buffer.slice(last) };
 }
+
+/** Splits pasted text into shadowable chunks: sentences, with very long ones broken at a comma. */
+export function splitForShadowing(text: string, maxWords = 28): string[] {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  if (!clean) return [];
+  const { sentences, rest } = takeSentences(clean + ' ');
+  const all = [...sentences, ...(rest.trim() ? [rest.trim()] : [])];
+  const out: string[] = [];
+  for (const s of all) {
+    if (s.split(' ').length <= maxWords) {
+      out.push(s);
+      continue;
+    }
+    const parts = s.split(/(?<=[,;:])\s+/);
+    let cur = '';
+    for (const p of parts) {
+      if (cur && (cur + ' ' + p).split(' ').length > maxWords) {
+        out.push(cur);
+        cur = p;
+      } else cur = cur ? `${cur} ${p}` : p;
+    }
+    if (cur) out.push(cur);
+  }
+  return out;
+}

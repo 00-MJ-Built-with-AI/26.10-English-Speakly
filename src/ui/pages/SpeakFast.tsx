@@ -3,6 +3,7 @@ import type { GradeResult } from '../../../shared/tasks.ts';
 import { unitById, type FastPrompt } from '../../content/units.ts';
 import { currentUnit, markPracticed, workingLevel } from '../../engine/path.ts';
 import { fluencyScore, PASS_MARK } from '../../engine/scoring.ts';
+import { analyzeHesitation, combineHesitation } from '../../engine/hesitation.ts';
 import { aiTask } from '../../lib/api.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
@@ -95,6 +96,7 @@ export function SpeakFast({ unitId }: { unitId?: string }) {
       title: `Speak fast${unit && fromUnit ? `: ${unit.title}` : ''}`,
       unitId: unit?.id,
       seconds: elapsed(),
+      hesitation: combineHesitation(real.map((r) => analyzeHesitation(r.a))),
       scores: {
         grammar: avg(rs.map((r) => r.g.grammarScore)),
         ...(real.length ? { fluency: avg(real.map((r) => fluencyScore(r.a, true))) } : {}),

@@ -10,6 +10,9 @@ and progress, Azure AI Speech for pronunciation scoring and the tutor's voice, C
   American r, clusters, stress, intonation), speak-fast drills against hesitation, role-plays.
 - **Tutor**: hands-free voice conversation (or push-to-talk), light corrections during, full report after.
 - **TOEFL**: Listen and Repeat, Take an Interview, full mock, band estimate on the 1-6 scale.
+- **More practice**: fast-track level test, daily speaking journal, "say it better" from Arabic,
+  personal phrase bank, your own texts, filler and pause tracker, intonation graph, mouth diagrams.
+- **Goals**: TOEFL exam date and target band plan, XP and achievements.
 - **Progress**: skill rings (0-100 + CEFR, like an EF SET report), history chart, mistake bank with
   spaced repetition, streak, weekly report, recordings (then vs now).
 

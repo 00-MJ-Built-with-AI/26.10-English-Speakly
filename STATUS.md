@@ -15,14 +15,39 @@
   with then-vs-now, settings (voice, speed, turn pause, corrections, goal), data export.
 - 16 unit tests; checked in the browser in test mode (typed answers, no microphone in the preview pane).
 
+## Batch 2 (2026-10-26)
+- Fast-track level test (`/placement`): one block per level, passing marks the whole level done; stops at
+  the first level not passed. Shared `CheckRunner` + `evaluateCheck` now also power unit checks.
+- Filler and pause tracker (`/practice/fillers`): um/uh, restarts, long pauses, start delay, per-minute
+  trend; recorded on tutor sessions, journal, speak-fast, TOEFL interview and checks; time-buying phrases
+  drill and a no-freeze drill.
+- Daily speaking journal (`/journal`): prompt of the day, 1-2 min answer, feedback, natural version to
+  read aloud, topic phrases, history with trend and recordings.
+- Say it better (`/better`): speak Arabic (dialect choice, Azure `ar-*`) or rough English, get 3 natural
+  versions to practise.
+- Personal phrase bank (`/vocab`): from tutor reports, journal, say-it-better or added by hand (AI
+  definition); spoken review on the same 1/3/7/14/30-day schedule.
+- Intonation graph: pitch contour of your recording vs the model voice, match %, flatness hint
+  (shadowing and sound-drill sentences). Model line needs Azure voices.
+- Shadow your own text (`/practice/mytext`): saved texts, sentence by sentence or read it all.
+- Mouth diagrams: side-view drawings (lips, tongue, contact, air, voice) for 12 sound drills.
+- Exam date and target band: card on the TOEFL page and in Settings, band chart with target line;
+  Today's plan adds TOEFL practice by phase (build / focus / final).
+- Achievements and XP: 5 XP per minute plus bonuses, 50 per finished unit, 26 badges, toasts,
+  `/achievements`; can be hidden in Settings.
+- Pages now start fresh on every route change (fixed stale state between sound drills).
+- 26 unit tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.
 - Hands-free turn-taking timing (default 1.6 s pause) needs tuning on real speech.
 - Install-to-home-screen on the phone.
+- Arabic recognition for "Say it better" and the intonation graph on real recordings (need Azure + mic).
+- Passing a level in the fast-track test (needs real speech; logic is unit-tested).
 
 ## Owner actions
 1. Create Firebase project (Google sign-in, Firestore, Blaze + Storage, rules), copy web config.
 2. Create Azure Speech resource, copy key and region.
 3. Create Anthropic API key; optionally pick a cheaper TUTOR_MODEL.
-4. Decide: GitHub repo (public or private) and Vercel deploy.
+4. Deploy to Vercel once the keys exist (repo: github.com/00-MJ-Built-with-AI/speakly).

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ToeflResult } from '../../../shared/tasks.ts';
 import { combineBands, INTERVIEW_SECONDS, INTERVIEW_SETS, REPEAT_SECONDS, REPEAT_SETS, repeatBand, type InterviewSet, type RepeatSet } from '../../content/toefl.ts';
 import { fluencyScore, overallSpeaking, toeflBandOf } from '../../engine/scoring.ts';
+import { analyzeHesitation, combineHesitation } from '../../engine/hesitation.ts';
 import { wordAccuracy } from '../../engine/text.ts';
 import { aiTask } from '../../lib/api.ts';
 import { go, href } from '../../lib/router.ts';
@@ -9,6 +10,7 @@ import { useApp } from '../../lib/store.tsx';
 import type { Attempt } from '../../lib/types.ts';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
+import { ExamCard } from '../components/ExamCard.tsx';
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -19,7 +21,7 @@ export function ToeflHub() {
   const { user, repo } = useApp();
   const [history, setHistory] = useState<Attempt[]>([]);
   useEffect(() => {
-    repo.list<Attempt>('attempts', { limit: 300 }).then((a) => setHistory(a.filter((x) => x.kind === 'toefl').slice(0, 10)));
+    repo.list<Attempt>('attempts', { limit: 500 }).then((a) => setHistory(a.filter((x) => x.kind === 'toefl')));
   }, [repo]);
   const overall = overallSpeaking(user);
   return (
@@ -45,6 +47,7 @@ export function ToeflHub() {
           </p>
         </div>
       </div>
+      <ExamCard history={history} />
       <button className="btn primary big" onClick={() => go('/toefl/mock')}>
         <Icon name="trophy" /> Full mock test (about 8 min)
       </button>
@@ -71,7 +74,7 @@ export function ToeflHub() {
       {history.length > 0 && (
         <div className="card">
           <h3>Recent results</h3>
-          {history.map((h, k) => (
+          {history.slice(0, 10).map((h, k) => (
             <div key={k} className="spread" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
               <span>{h.title}</span>
               <span className="row">
@@ -356,6 +359,7 @@ export function ToeflInterview({ mock }: { mock: boolean }) {
         kind: 'toefl',
         title: mock ? `Mock test: ${set.topic}` : `Take an Interview: ${set.topic}`,
         seconds: elapsed(),
+        hesitation: combineHesitation(real.map(analyzeHesitation)),
         scores: real.length ? { pronunciation: avg(real.map((a) => a.pron)), fluency: avg(real.map((a) => fluencyScore(a, true))) } : {},
         detail: { band: overall, repeat: repeatB, interview: bands },
       });

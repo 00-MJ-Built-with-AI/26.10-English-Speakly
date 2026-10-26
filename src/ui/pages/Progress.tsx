@@ -170,9 +170,19 @@ export function ProgressPage() {
             <p className="small muted">Do a few sound drills or conversations and your weakest sounds will show here.</p>
           )}
           <hr />
-          <a className="btn" href={href('/recordings')}>
-            <Icon name="play" size={16} /> My recordings
-          </a>
+          <div className="row">
+            <a className="btn" href={href('/recordings')}>
+              <Icon name="play" size={16} /> My recordings
+            </a>
+            <a className="btn" href={href('/practice/fillers')}>
+              <Icon name="wave" size={16} /> Fillers and pauses
+            </a>
+            {user.settings.showGamification && (
+              <a className="btn" href={href('/achievements')}>
+                <Icon name="trophy" size={16} /> Achievements
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>

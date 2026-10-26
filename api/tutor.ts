@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import type { z } from 'zod';
 import {
+  BetterResult,
+  DefineResult,
+  JournalResult,
   CheckResult,
   GenFast,
   GenReadAloud,
@@ -21,6 +24,9 @@ import {
   type TaskInput,
   type ToeflInput,
   type WeeklyInput,
+  type BetterInput,
+  type DefineInput,
+  type JournalInput,
 } from '../shared/tasks.ts';
 import { errorResponse, HttpError, requireUser } from './_lib/auth.ts';
 import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.ts';
@@ -132,6 +138,24 @@ const TASKS: Record<string, (input: never) => Promise<unknown>> = {
     if (!schema) throw new HttpError(400, 'Unknown kind');
     return structured(schema as z.ZodType, generatePrompt(i), 'low');
   },
+  journal: (i: JournalInput) =>
+    structured(
+      JournalResult,
+      `Daily speaking journal, learner level ${i.level}. Prompt: "${i.prompt}". They spoke for ${Math.round(i.seconds)} seconds. Transcript: "${i.transcript}"
+
+Give warm, specific feedback. corrections: the 2-6 most useful real errors only. polished: their own content, said naturally, about one CEFR level higher (keep it speakable, not written style). phrases: useful phrases for this topic they could use next time.`,
+      'medium',
+    ),
+  better: (i: BetterInput) =>
+    structured(
+      BetterResult,
+      `The learner (level ${i.level}) wants to say something in English. They said it ${i.language === 'ar' ? 'in Arabic (speech transcript; any dialect)' : 'in rough English (speech transcript)'}: "${i.text}"${i.situation ? `
+Situation: ${i.situation}` : ''}
+
+Give exactly 3 natural spoken American English versions: everyday, professional (work meetings), and concise. Keep each speakable in one breath or two, and not much above level ${i.level === 'C2' ? 'C2' : 'one level above ' + i.level}. Do not add new information.`,
+      'low',
+    ),
+  define: (i: DefineInput) => structured(DefineResult, `Explain the English phrase "${i.phrase}" simply for a ${i.level} learner and give one natural spoken example sentence.`, 'low'),
   weekly: (i: WeeklyInput) =>
     structured(WeeklyResult, `Write this learner's weekly speaking report from these numbers:\n${json(i)}\nBe specific, warm and brief.`, 'low'),
 };

@@ -104,17 +104,22 @@ export class AzureEngine implements SpeechEngine {
       const [cfg, stream] = await Promise.all([speechConfig(sdk), micStream()]);
       if (typed != null) return typedAssessment(typed, opts.reference);
       cfg.setProperty(sdk.PropertyId.Speech_SegmentationSilenceTimeoutMs, opts.reference ? '700' : '900');
+      if (opts.language) cfg.speechRecognitionLanguage = opts.language;
+      const assess = opts.assess !== false && (!opts.language || opts.language.startsWith('en'));
+      if (!assess) cfg.requestWordLevelTimestamps();
       const input = stream.clone();
       const recognizer = new sdk.SpeechRecognizer(cfg, sdk.AudioConfig.fromStreamInput(input));
-      const pa = new sdk.PronunciationAssessmentConfig(
-        opts.reference ?? '',
-        sdk.PronunciationAssessmentGradingSystem.HundredMark,
-        sdk.PronunciationAssessmentGranularity.Phoneme,
-        Boolean(opts.reference),
-      );
-      pa.enableProsodyAssessment = true;
-      pa.phonemeAlphabet = 'IPA';
-      pa.applyTo(recognizer);
+      if (assess) {
+        const pa = new sdk.PronunciationAssessmentConfig(
+          opts.reference ?? '',
+          sdk.PronunciationAssessmentGradingSystem.HundredMark,
+          sdk.PronunciationAssessmentGranularity.Phoneme,
+          Boolean(opts.reference),
+        );
+        pa.enableProsodyAssessment = true;
+        pa.phonemeAlphabet = 'IPA';
+        pa.applyTo(recognizer);
+      }
 
       const recorder = new VoiceRecorder();
       if (opts.record) recorder.start(stream);
@@ -150,7 +155,7 @@ export class AzureEngine implements SpeechEngine {
           if (e.result.reason !== sdk.ResultReason.RecognizedSpeech) return;
           lastSpeechAt = performance.now();
           const seg = parseSegment(sdk, e.result);
-          if (seg && seg.words.length) {
+          if (seg && (seg.words.length || seg.text)) {
             segments.push(seg);
             partialBase = segments.map((s) => s.text).join(' ');
             opts.onPartial?.(partialBase);
@@ -226,6 +231,10 @@ export class AzureEngine implements SpeechEngine {
       if (this.cache.size > 200) this.cache.delete(this.cache.keys().next().value!);
     }
     return hit;
+  }
+
+  async modelAudio(text: string, opts: SpeakOptions = {}): Promise<Blob | null> {
+    return (await fetch(await this.synth(text, opts))).blob();
   }
 
   prefetch(text: string, opts: SpeakOptions = {}): void {

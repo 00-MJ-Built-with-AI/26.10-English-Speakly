@@ -16,6 +16,16 @@ export function PathPage() {
       <p className="muted">
         Every unit starts with a short speaking check. Pass it and the unit is done; miss a part and you only practise that part. {done} of {UNITS.length} units done.
       </p>
+      <a className="list-item" href={href('/placement')} style={{ borderColor: 'var(--brand)' }}>
+        <span className="icon-tile">
+          <Icon name="target" />
+        </span>
+        <span className="grow">
+          <b>Fast-track level test</b>
+          <div className="small muted">Pass a whole level in about 2½ minutes instead of checking unit by unit.</div>
+        </span>
+        <Icon name="next" />
+      </a>
       {LEVELS.map((level) => {
         const p = levelProgress(user, level);
         return (

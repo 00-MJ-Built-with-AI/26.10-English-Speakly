@@ -802,3 +802,36 @@ hr {
     display: none;
   }
 }
+
+/* toasts */
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 90px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.toast {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-weight: 650;
+  font-size: 0.9rem;
+  animation: fade 0.25s ease;
+}
+.toast.badge {
+  background: linear-gradient(135deg, var(--pron), var(--flu));
+  color: #fff;
+  border-color: transparent;
+}
+@media (min-width: 761px) {
+  .toasts {
+    bottom: 24px;
+  }
+}

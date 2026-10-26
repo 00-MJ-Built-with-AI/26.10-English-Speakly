@@ -180,6 +180,60 @@ export interface WeeklyInput {
   weakSounds: string[];
 }
 
+// ---- phrases (journal, say-it-better, vocabulary bank) ----
+export const Phrase = z.object({
+  phrase: z.string().describe('A natural, reusable English phrase or collocation'),
+  meaning: z.string().describe('Short, simple explanation'),
+  example: z.string().describe('One natural example sentence using it'),
+});
+export type Phrase = z.infer<typeof Phrase>;
+
+// ---- journal: a 1-2 minute spoken diary entry ----
+export const JournalResult = z.object({
+  feedback: z.string().describe('2-3 sentences: what was good and the single most useful thing to improve'),
+  corrections: z.array(ErrorItem),
+  polished: z.string().describe('The same content as a natural spoken version, about one level higher, same meaning, same length'),
+  phrases: z.array(Phrase).describe('2-4 useful phrases for talking about this topic'),
+  grammarScore: score,
+  vocabularyScore: score,
+  cefr,
+});
+export type JournalResult = z.infer<typeof JournalResult>;
+export interface JournalInput {
+  level: Level;
+  prompt: string;
+  transcript: string;
+  seconds: number;
+}
+
+// ---- better: say what you mean in Arabic or rough English, get natural English ----
+export const BetterResult = z.object({
+  understood: z.string().describe('What the learner means, in one plain English sentence'),
+  versions: z.array(
+    z.object({
+      text: z.string(),
+      style: z.enum(['everyday', 'professional', 'concise']),
+      note: z.string().describe('When to use it, in a few words'),
+    }),
+  ),
+  phrases: z.array(Phrase).describe('1-3 key phrases worth learning from these versions'),
+});
+export type BetterResult = z.infer<typeof BetterResult>;
+export interface BetterInput {
+  level: Level;
+  text: string;
+  language: 'ar' | 'en';
+  situation?: string;
+}
+
+// ---- define: fill in a phrase the learner adds by hand ----
+export const DefineResult = z.object({ meaning: z.string(), example: z.string() });
+export type DefineResult = z.infer<typeof DefineResult>;
+export interface DefineInput {
+  phrase: string;
+  level: Level;
+}
+
 export interface TaskMap {
   check: [CheckInput, CheckResult];
   report: [ReportInput, ReportResult];
@@ -188,5 +242,8 @@ export interface TaskMap {
   toefl: [ToeflInput, ToeflResult];
   generate: [GenerateInput, GenerateOutputs[GenerateKind]];
   weekly: [WeeklyInput, WeeklyResult];
+  journal: [JournalInput, JournalResult];
+  better: [BetterInput, BetterResult];
+  define: [DefineInput, DefineResult];
 }
 export type TaskName = keyof TaskMap;

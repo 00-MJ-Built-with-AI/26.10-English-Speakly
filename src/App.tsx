@@ -24,6 +24,13 @@ import { Recordings } from './ui/pages/Recordings.tsx';
 import { SettingsPage } from './ui/pages/Settings.tsx';
 import { Grammar } from './ui/pages/Grammar.tsx';
 import { UpdateBadge } from './ui/components/UpdateBadge.tsx';
+import { Placement } from './ui/pages/Placement.tsx';
+import { Fillers } from './ui/pages/Fillers.tsx';
+import { Journal } from './ui/pages/Journal.tsx';
+import { Better } from './ui/pages/Better.tsx';
+import { Vocab } from './ui/pages/Vocab.tsx';
+import { MyTexts } from './ui/pages/MyTexts.tsx';
+import { Achievements } from './ui/pages/Achievements.tsx';
 
 export function App() {
   if (!hasFirebase) return <LocalApp />;
@@ -101,11 +108,11 @@ function SignIn() {
 
 const TABS: { to: string; label: string; icon: string; match: string[] }[] = [
   { to: '/today', label: 'Today', icon: 'home', match: ['today', ''] },
-  { to: '/path', label: 'Path', icon: 'path', match: ['path', 'unit', 'grammar'] },
-  { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays'] },
+  { to: '/path', label: 'Path', icon: 'path', match: ['path', 'unit', 'grammar', 'placement'] },
+  { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab'] },
   { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor'] },
   { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl'] },
-  { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings'] },
+  { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements'] },
 ];
 
 function Shell() {
@@ -126,6 +133,9 @@ function Shell() {
     case 'unit':
       page = c === 'check' ? <UnitCheck id={b} /> : <UnitPage id={b} />;
       break;
+    case 'placement':
+      page = <Placement />;
+      break;
     case 'grammar':
       page = <Grammar unitId={b} />;
       break;
@@ -134,7 +144,18 @@ function Shell() {
       else if (b === 'read') page = <ReadAloud unitId={route.query.get('unit') ?? undefined} />;
       else if (b === 'sounds') page = c ? <SoundDrill id={c} unitId={route.query.get('unit') ?? undefined} /> : <SoundsList />;
       else if (b === 'fast') page = <SpeakFast unitId={route.query.get('unit') ?? undefined} />;
+      else if (b === 'fillers') page = <Fillers />;
+      else if (b === 'mytext') page = <MyTexts />;
       else page = <PracticeHub />;
+      break;
+    case 'journal':
+      page = <Journal />;
+      break;
+    case 'better':
+      page = <Better />;
+      break;
+    case 'vocab':
+      page = <Vocab />;
       break;
     case 'roleplays':
       page = <Roleplays />;
@@ -143,13 +164,16 @@ function Shell() {
       page = <Review />;
       break;
     case 'tutor':
-      page = <Tutor key={route.query.toString()} query={route.query} />;
+      page = <Tutor query={route.query} />;
       break;
     case 'toefl':
       page = b === 'repeat' ? <ToeflRepeat mock={false} /> : b === 'interview' ? <ToeflInterview mock={false} /> : b === 'mock' ? <ToeflRepeat mock /> : b === 'mock-interview' ? <ToeflInterview mock /> : <ToeflHub />;
       break;
     case 'progress':
       page = <ProgressPage />;
+      break;
+    case 'achievements':
+      page = <Achievements />;
       break;
     case 'recordings':
       page = <Recordings />;
@@ -191,7 +215,10 @@ function Shell() {
           </div>
         </div>
       </header>
-      <main className="main">{page}</main>
+      {/* A new address always starts the page fresh (e.g. one sound drill to the next). */}
+      <main className="main" key={`${route.path.join('/')}?${route.query.toString()}`}>
+        {page}
+      </main>
       <nav className="tabbar">
         {TABS.filter((t) => t.to !== '/toefl').map((t) => (
           <a key={t.to} href={href(t.to)} className={t.match.includes(top) || (t.to === '/practice' && top === 'toefl') ? 'active' : ''}>

@@ -46,6 +46,10 @@ export interface ListenOptions {
   /** Push-to-talk: only stop() ends listening. */
   manualStop?: boolean;
   record?: boolean;
+  /** Recognition language (default en-US), e.g. ar-JO for Arabic. */
+  language?: string;
+  /** Score pronunciation (default true). Off for other languages. */
+  assess?: boolean;
   onPartial?: (text: string) => void;
   onSpeechStart?: () => void;
 }
@@ -74,6 +78,8 @@ export interface SpeechEngine {
   speak(text: string, opts?: SpeakOptions): Promise<void>;
   /** Prepare audio ahead of time so speak() starts instantly. */
   prefetch(text: string, opts?: SpeakOptions): void;
+  /** The model voice as audio (for the intonation graph); null when the engine can't provide it. */
+  modelAudio(text: string, opts?: SpeakOptions): Promise<Blob | null>;
   stopSpeaking(): void;
 }
 

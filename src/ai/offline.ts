@@ -182,6 +182,33 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         nextFocus: ['Answer with two or three sentences each time.'],
       } as TaskMap[K][1];
     }
+    case 'journal': {
+      const t = String(i.transcript ?? '');
+      const s = levelScore(t);
+      return {
+        feedback: `(Test mode) You spoke ${countWords(t)} words. Real feedback appears once the AI tutor key is added.`,
+        corrections: findErrors(t),
+        polished: findErrors(t).reduce((acc, e) => acc.replace(e.original, e.corrected), t),
+        phrases: [{ phrase: 'to be honest', meaning: 'used before saying what you really think', example: "To be honest, I didn't enjoy it much." }],
+        grammarScore: s,
+        vocabularyScore: s,
+        cefr: cefrOf(s),
+      } as TaskMap[K][1];
+    }
+    case 'better': {
+      const t = String(i.text ?? '');
+      return {
+        understood: i.language === 'ar' ? '(Test mode) Arabic needs the AI key to translate.' : t,
+        versions: [
+          { text: t || 'Could you give me a bit more time on this?', style: 'everyday', note: '(Test mode)' },
+          { text: 'Would it be possible to have a little more time on this?', style: 'professional', note: '(Test mode) example' },
+          { text: 'I need more time.', style: 'concise', note: '(Test mode) example' },
+        ],
+        phrases: [{ phrase: 'would it be possible to', meaning: 'a polite way to ask for something', example: 'Would it be possible to move the meeting?' }],
+      } as TaskMap[K][1];
+    }
+    case 'define':
+      return { meaning: '(Test mode) Add the AI key to get meanings automatically.', example: String(i.phrase ?? '') } as TaskMap[K][1];
     case 'weekly':
       return {
         headline: '(Test mode) Your week',

@@ -6,6 +6,9 @@ import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
+import { MOUTH } from '../../content/mouth.ts';
+import { MouthPair } from '../components/MouthDiagram.tsx';
+import { IntonationGraph } from '../components/IntonationGraph.tsx';
 import { MicControl, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 export function SoundsList() {
@@ -77,9 +80,9 @@ export function SoundDrill({ id, unitId }: { id: string; unitId?: string }) {
 
   const sayItems = set.pairs.length ? set.pairs.flatMap((p) => p) : (set.words ?? []);
 
-  async function say(text: string) {
+  async function say(text: string, record = false) {
     setActive(text);
-    const a = await mic.listen({ reference: text, maxSeconds: 15, endSilenceMs: 1000, noSpeechMs: 7000 });
+    const a = await mic.listen({ reference: text, maxSeconds: 15, endSilenceMs: 1000, noSpeechMs: 7000, record });
     setActive(null);
     if (a) setResults((r) => ({ ...r, [text]: a }));
   }
@@ -139,8 +142,18 @@ export function SoundDrill({ id, unitId }: { id: string; unitId?: string }) {
         ← {unitId ? 'Back to unit' : 'All sounds'}
       </a>
       <h1>{set.title}</h1>
-      <div className="card">
+      <div className="card stack">
         <p style={{ margin: 0 }}>{set.tip}</p>
+        {MOUTH[set.id] && (
+          <>
+            <MouthPair target={MOUTH[set.id].target} contrast={MOUTH[set.id].contrast} />
+            <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
+              {MOUTH[set.id].steps.map((st) => (
+                <li key={st}>{st}</li>
+              ))}
+            </ol>
+          </>
+        )}
       </div>
 
       {quiz.length > 0 && (
@@ -215,7 +228,7 @@ export function SoundDrill({ id, unitId }: { id: string; unitId?: string }) {
                   <button className="btn small" onClick={() => speak(s)}>
                     <Icon name="volume" size={16} />
                   </button>
-                  <button className="btn small primary" onClick={() => say(s)} disabled={mic.state !== 'idle'}>
+                  <button className="btn small primary" onClick={() => say(s, true)} disabled={mic.state !== 'idle'}>
                     <Icon name="mic" size={16} />
                   </button>
                 </div>
@@ -225,6 +238,7 @@ export function SoundDrill({ id, unitId }: { id: string; unitId?: string }) {
                 <>
                   <WordScores a={r} />
                   <ScoreChips a={r} showFluency={false} />
+                  {r.audio && r.engine !== 'typed' && <IntonationGraph text={s} userAudio={r.audio} />}
                 </>
               )}
             </div>

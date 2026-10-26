@@ -4,6 +4,8 @@ import { soundForPhoneme } from '../../content/sounds.ts';
 import { unitById } from '../../content/units.ts';
 import { markPracticed, workingLevel } from '../../engine/path.ts';
 import { fluencyScore } from '../../engine/scoring.ts';
+import { analyzeHesitation, combineHesitation, type HesitationStats } from '../../engine/hesitation.ts';
+import { HesitationChips } from '../components/Hesitation.tsx';
 import { takeSentences } from '../../engine/text.ts';
 import { aiChat, aiTask } from '../../lib/api.ts';
 import { href } from '../../lib/router.ts';
@@ -55,6 +57,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ReportResult | null>(null);
   const [silent, setSilent] = useState(false);
+  const [hes, setHes] = useState<HesitationStats | undefined>();
 
   const mic = useListen();
   const turnsRef = useRef<Turn[]>([]);
@@ -237,12 +240,15 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       setError(e instanceof Error ? e.message : String(e));
     }
     const fl = real.length ? avg(real.map((a) => fluencyScore(a, true))) : undefined;
+    const hesitation = combineHesitation(real.map(analyzeHesitation));
+    setHes(hesitation);
     await app.logAttempt({
       at: Date.now(),
       kind: kind === 'free' ? 'tutor' : 'roleplay',
       title,
       unitId: unit?.id,
       seconds,
+      hesitation,
       scores: {
         ...(r ? { grammar: r.grammar, vocabulary: r.vocabulary } : {}),
         ...(real.length ? { pronunciation: avg(real.map((a) => a.pron)) } : {}),
@@ -255,6 +261,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       ...[...new Set(weakWords)].slice(0, 5).map((w) => ({ kind: 'pronunciation' as const, said: w, better: w, why: 'Unclear in conversation' })),
     ];
     await app.addMistakes(mistakes, title);
+    if (r?.betterPhrases.length) await app.addVocab(r.betterPhrases.map((p) => ({ phrase: p.try, meaning: `A more natural way to say “${p.instead}”`, example: p.try })), title);
     app.saveRecording(audio, { title, kind: kind === 'free' ? 'tutor' : 'roleplay', seconds, text: learner.map((t) => t.text).join(' / ') });
     if (unit && kind === 'unit') app.update((u) => markPracticed(u, unit.id, 'task'));
     if (weakSounds.length) app.update((u) => weakSounds.forEach((id) => (u.sounds[id] = Math.round(avg(soundScores[id])))));
@@ -377,6 +384,12 @@ export function Tutor({ query }: { query: URLSearchParams }) {
                 This conversation: around <b>{report.cefr}</b>.
               </p>
             </div>
+            {hes && (
+              <div className="card">
+                <h3>Fluency and hesitation</h3>
+                <HesitationChips h={hes} />
+              </div>
+            )}
             {report.strengths.length > 0 && (
               <div className="card">
                 <h3>What went well</h3>
@@ -414,6 +427,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
                     Instead of <i>“{p.instead}”</i>, try <b>“{p.try}”</b>
                   </p>
                 ))}
+                <p className="small muted">Added to My phrases.</p>
               </div>
             )}
             {report.pronunciationTips.length > 0 && (

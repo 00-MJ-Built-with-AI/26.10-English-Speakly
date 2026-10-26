@@ -104,3 +104,26 @@ export function confirmedLevel(user: UserDoc): Level | null {
 export function workingLevel(user: UserDoc): Level {
   return currentUnit(user)?.level ?? 'C2';
 }
+
+/** Marks every unit of a level as tested out (fast-track level test) and opens the next level. */
+export function testOutLevel(user: UserDoc, level: Level): void {
+  const units = UNITS.filter((u) => u.level === level);
+  for (const unit of units) {
+    const s = ensureUnit(user, unit.id);
+    for (const p of UNIT_PARTS) {
+      s.parts[p].passed = true;
+      s.parts[p].best = Math.max(s.parts[p].best, 70);
+    }
+    s.checked = true;
+    if (s.status !== 'done') {
+      s.status = 'done';
+      s.doneAt = Date.now();
+      s.viaTestOut = true;
+    }
+  }
+  const next = nextUnit(units[units.length - 1].id);
+  if (next) {
+    const n = ensureUnit(user, next.id);
+    if (n.status === 'locked') n.status = 'open';
+  }
+}
