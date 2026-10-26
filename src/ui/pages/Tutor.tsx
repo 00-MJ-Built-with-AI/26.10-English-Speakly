@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChatInput, CorrectionStyle, ErrorItem, ReportResult, Scenario } from '../../../shared/tasks.ts';
+import type { ChatInput, ChatKind, CorrectionStyle, ErrorItem, ReportResult, Scenario, TutorMemory } from '../../../shared/tasks.ts';
+import { scenarioById } from '../../content/scenarios.ts';
+import { memoryForTutor, rememberSession } from '../../engine/memory.ts';
+import { startLineNoise, stopLineNoise } from '../../speech/fx.ts';
+import type { AttemptKind, Mistake, VocabItem } from '../../lib/types.ts';
 import { soundForPhoneme } from '../../content/sounds.ts';
 import { unitById } from '../../content/units.ts';
 import { markPracticed, workingLevel } from '../../engine/path.ts';
@@ -38,20 +42,56 @@ const TOPICS = [
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
+const ATTEMPT_KIND: Record<ChatKind, AttemptKind> = {
+  free: 'tutor',
+  interview: 'tutor',
+  roleplay: 'roleplay',
+  unit: 'roleplay',
+  debate: 'debate',
+  phone: 'phone',
+  job: 'interview',
+  smalltalk: 'smalltalk',
+};
+
+/** The tutor says one of these when a scene is over; the session then ends with a report. */
+const SCENE_OVER = /end of (the )?(role-?play|call|interview)|debate over/i;
+
+const START_LABEL: Record<ChatKind, string> = {
+  free: 'Start conversation',
+  interview: 'Start conversation',
+  roleplay: 'Start role-play',
+  unit: 'Start role-play',
+  debate: 'Start the debate',
+  phone: 'Call',
+  job: 'Start the interview',
+  smalltalk: 'Start chatting',
+};
+
+function callTime(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
 export function Tutor({ query }: { query: URLSearchParams }) {
   const app = useApp();
   const { user, engine } = app;
   const unit = unitById(query.get('unit') ?? '');
-  const kind = (query.get('kind') as ChatInput['kind']) || 'free';
-  const scenario: Scenario | undefined = kind === 'roleplay' || kind === 'unit' ? unit?.roleplay : undefined;
+  const kind = (query.get('kind') as ChatKind) || 'free';
+  const extra = scenarioById(query.get('sc') ?? '');
+  const scenario: Scenario | undefined = kind === 'roleplay' || kind === 'unit' ? unit?.roleplay : extra?.scenario;
+  const debate = kind === 'debate' ? { motion: query.get('topic') ?? '', side: (query.get('side') === 'against' ? 'against' : 'for') as 'for' | 'against' } : undefined;
+  const job = kind === 'job' ? user.interviewPrep : undefined;
+  const phone = kind === 'phone';
   const level = unit?.level ?? workingLevel(user);
+  const title = debate ? `Debate: ${debate.motion}` : job ? 'Mock job interview' : scenario ? scenario.title : `Conversation: ${query.get('topic') || 'free talk'}`;
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [topic, setTopic] = useState(query.get('topic') ?? '');
   const [custom, setCustom] = useState('');
   const [correction, setCorrection] = useState<CorrectionStyle>(user.settings.correction);
   const [handsFree, setHandsFree] = useState(user.settings.handsFree);
-  const [showText, setShowText] = useState(user.settings.liveTranscript);
+  const [showText, setShowText] = useState(phone ? false : user.settings.liveTranscript);
+  const [now, setNow] = useState(Date.now());
   const [turns, setTurns] = useState<Turn[]>([]);
   const [live, setLive] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +107,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
   const started = useRef(0);
   const ended = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
+  const memory = useRef<TutorMemory | undefined>(undefined);
 
   const setT = (fn: (t: Turn[]) => Turn[]) => {
     turnsRef.current = fn(turnsRef.current);
@@ -83,15 +124,26 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       abort.current?.abort();
       queue.current?.stop();
       rec.current?.stop();
+      stopLineNoise();
     },
     [],
   );
 
+  // Call timer for the phone simulator.
+  useEffect(() => {
+    if (!phone || phase === 'setup' || phase === 'report' || phase === 'reporting') return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [phone, phase]);
+
   const chatInput = (): ChatInput => ({
       level,
       kind: kind === 'unit' ? 'roleplay' : kind,
-      topic: topic || undefined,
+      topic: kind === 'free' || kind === 'interview' ? topic || undefined : undefined,
       scenario,
+      memory: memory.current,
+      debate,
+      job: job ? { ad: job.ad, cv: job.cv } : undefined,
       targets: unit ? { grammar: unit.grammar.name, functions: unit.functions, vocab: unit.vocab } : undefined,
       goals: ['work meetings', 'the new TOEFL iBT'],
       correction,
@@ -124,7 +176,12 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     setPhase('thinking');
     setError(null);
     abort.current = new AbortController();
-    const q = new SpeakQueue(engine, { voice: user.settings.voice, browserVoice: user.settings.browserVoice, rate: user.settings.speechRate });
+    const q = new SpeakQueue(engine, {
+      voice: user.settings.voice,
+      browserVoice: user.settings.browserVoice,
+      rate: phone ? Math.max(user.settings.speechRate, 1.05) : user.settings.speechRate,
+      phone,
+    });
     queue.current = q;
     let buffer = '';
     let full = '';
@@ -155,7 +212,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     setPhase('speaking');
     await q.drain();
     if (ended.current) return;
-    if (/end of role-?play/i.test(full)) {
+    if (SCENE_OVER.test(full)) {
       finish();
       return;
     }
@@ -177,6 +234,14 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     ended.current = false;
     started.current = Date.now();
     setPhase('thinking');
+    if (user.settings.tutorMemory) {
+      const [vocab, mistakes] = await Promise.all([
+        app.repo.list<VocabItem>('vocab', { limit: 300 }).catch(() => []),
+        app.repo.list<Mistake>('mistakes', { limit: 300 }).catch(() => []),
+      ]);
+      memory.current = memoryForTutor(user, vocab, mistakes);
+    }
+    if (phone) startLineNoise();
     try {
       rec.current = new VoiceRecorder();
       rec.current.start(await micStream());
@@ -202,6 +267,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     ended.current = true;
     abort.current?.abort();
     queue.current?.stop();
+    stopLineNoise();
     mic.cancel();
     const all = turnsRef.current;
     const learner = all.filter((t) => t.role === 'learner');
@@ -224,12 +290,13 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     const weakSounds = Object.entries(soundScores)
       .filter(([, v]) => v.length >= 3 && avg(v) < 70)
       .map(([id]) => id);
-    const title = scenario ? scenario.title : `Conversation: ${topic || 'free talk'}`;
+    const sessionTitle = kind === 'free' && topic ? `Conversation: ${topic}` : title;
     let r: ReportResult | null = null;
     try {
       r = await aiTask('report', {
         level,
-        title,
+        title: sessionTitle,
+        kind,
         turns: all.map((t) => ({ role: t.role, text: t.text, errors: t.errors })),
         pronunciation: real.length ? { score: avg(real.map((a) => a.pron)), weakWords: [...new Set(weakWords)].slice(0, 15), weakSounds } : undefined,
         fluency: real.length
@@ -244,8 +311,8 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     setHes(hesitation);
     await app.logAttempt({
       at: Date.now(),
-      kind: kind === 'free' ? 'tutor' : 'roleplay',
-      title,
+      kind: ATTEMPT_KIND[kind],
+      title: sessionTitle,
       unitId: unit?.id,
       seconds,
       hesitation,
@@ -255,16 +322,20 @@ export function Tutor({ query }: { query: URLSearchParams }) {
         ...(fl != null ? { fluency: fl } : {}),
       },
     });
-    await app.repo.add('sessions', { at: Date.now(), title, kind, turns: all.map((t) => ({ role: t.role, text: t.text, errors: t.errors ?? [] })), report: r, seconds });
+    await app.repo.add('sessions', { at: Date.now(), title: sessionTitle, kind, turns: all.map((t) => ({ role: t.role, text: t.text, errors: t.errors ?? [] })), report: r, seconds });
     const mistakes = [
       ...(r?.corrections ?? []).map((c) => ({ kind: c.kind, said: c.said, better: c.better, why: c.why })),
       ...[...new Set(weakWords)].slice(0, 5).map((w) => ({ kind: 'pronunciation' as const, said: w, better: w, why: 'Unclear in conversation' })),
     ];
-    await app.addMistakes(mistakes, title);
-    if (r?.betterPhrases.length) await app.addVocab(r.betterPhrases.map((p) => ({ phrase: p.try, meaning: `A more natural way to say “${p.instead}”`, example: p.try })), title);
-    app.saveRecording(audio, { title, kind: kind === 'free' ? 'tutor' : 'roleplay', seconds, text: learner.map((t) => t.text).join(' / ') });
+    await app.addMistakes(mistakes, sessionTitle);
+    if (r?.betterPhrases.length) await app.addVocab(r.betterPhrases.map((p) => ({ phrase: p.try, meaning: `A more natural way to say “${p.instead}”`, example: p.try })), sessionTitle);
+    app.saveRecording(audio, { title: sessionTitle, kind: ATTEMPT_KIND[kind], seconds, text: learner.map((t) => t.text).join(' / ') });
     if (unit && kind === 'unit') app.update((u) => markPracticed(u, unit.id, 'task'));
     if (weakSounds.length) app.update((u) => weakSounds.forEach((id) => (u.sounds[id] = Math.round(avg(soundScores[id])))));
+    if (r?.learnerFacts.length || (kind === 'free' && topic)) {
+      const facts = r?.learnerFacts ?? [];
+      app.update((u) => u.settings.tutorMemory && rememberSession(u, facts, sessionTitle.replace(/^Conversation: /, '')));
+    }
     setReport(r);
     setPhase('report');
   }
@@ -293,13 +364,36 @@ export function Tutor({ query }: { query: URLSearchParams }) {
   if (phase === 'setup') {
     return (
       <div className="stack">
-        {unit && (
-          <a className="small" href={href(kind === 'unit' ? `/unit/${unit.id}` : '/roleplays')}>
+        {kind !== 'free' && (
+          <a
+            className="small"
+            href={href(
+              kind === 'unit' && unit ? `/unit/${unit.id}` : kind === 'debate' ? '/debate' : kind === 'phone' ? '/phone' : kind === 'job' ? '/interview-prep' : kind === 'smalltalk' ? '/smalltalk' : '/roleplays',
+            )}
+          >
             ← Back
           </a>
         )}
-        <h1>{scenario ? scenario.title : 'Talk with your tutor'}</h1>
-        {scenario ? (
+        <h1>{kind === 'free' ? 'Talk with your tutor' : title}</h1>
+        {debate ? (
+          <div className="card stack">
+            <p>
+              You argue <b>{debate.side === 'for' ? 'FOR' : 'AGAINST'}</b> the motion; the tutor argues the other side and pushes back. About 5 rounds.
+            </p>
+            <p className="small muted">Give a clear position, a reason, and an example each time. Answer the tutor's challenge before making a new point.</p>
+          </div>
+        ) : kind === 'job' ? (
+          job?.ad && job.cv ? (
+            <div className="card stack">
+              <p>A realistic interview for the job you saved: about 8 questions, including behavioural ones. Answer with a situation, what you did, and the result.</p>
+              <p className="small muted">{job.ad.split('\n').find((l) => l.trim())?.slice(0, 120)}</p>
+            </div>
+          ) : (
+            <div className="banner">
+              First add the job ad and your CV on the <a href={href('/interview-prep')}>interview prep</a> page.
+            </div>
+          )
+        ) : scenario ? (
           <div className="card stack">
             <p>
               <b>Setting:</b> {scenario.setting}
@@ -318,6 +412,17 @@ export function Tutor({ query }: { query: URLSearchParams }) {
                 Try to use: {unit.grammar.name}; {unit.functions.join(', ')}.
               </p>
             )}
+            {extra && (
+              <div>
+                <div className="section-title">Useful phrases</div>
+                <ul className="small" style={{ margin: 0 }}>
+                  {extra.phrases.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {phone && <p className="small muted">Audio only: the line sounds like a real phone and the caller speaks a little faster. The transcript starts hidden.</p>}
           </div>
         ) : (
           <div className="card stack">
@@ -356,10 +461,28 @@ export function Tutor({ query }: { query: URLSearchParams }) {
             <input type="checkbox" checked={showText} onChange={(e) => setShowText(e.target.checked)} />
           </div>
         </div>
-        <button className="btn primary big" onClick={start}>
-          <Icon name="mic" /> Start {scenario ? 'role-play' : 'conversation'}
+        {kind === 'free' && (
+          <div className="row small">
+            <span className="muted">Other modes:</span>
+            <a href={href('/debate')}>Debate</a>
+            <a href={href('/phone')}>Phone calls</a>
+            <a href={href('/smalltalk')}>Small talk</a>
+            <a href={href('/interview-prep')}>Job interview</a>
+            <a href={href('/roleplays')}>Role-plays</a>
+          </div>
+        )}
+        <button className="btn primary big" onClick={start} disabled={kind === 'job' && !(job?.ad && job.cv)}>
+          <Icon name="mic" /> {START_LABEL[kind]}
         </button>
-        <p className="small muted">Use headphones if you can, so the tutor's voice does not reach your microphone. Level: {level}.</p>
+        <p className="small muted">
+          Use headphones if you can, so the tutor's voice does not reach your microphone. Level: {level}.
+          {user.settings.tutorMemory && user.memory.facts.length > 0 && (
+            <>
+              {' '}
+              The tutor remembers {user.memory.facts.length} thing{user.memory.facts.length === 1 ? '' : 's'} about you (<a href={href('/settings')}>manage</a>).
+            </>
+          )}
+        </p>
       </div>
     );
   }
@@ -486,6 +609,20 @@ export function Tutor({ query }: { query: URLSearchParams }) {
         </div>
       </div>
 
+      {phone && (
+        <div className="card" style={{ textAlign: 'center' }}>
+          <div className="avatar" style={{ width: 84, height: 84, margin: '0 auto', fontSize: '2rem' }}>
+            {(scenario?.aiRole ?? '?').replace(/^(a|an|the) /i, '').charAt(0).toUpperCase()}
+          </div>
+          <div style={{ marginTop: 10, fontWeight: 700 }}>{scenario?.aiRole}</div>
+          <div className="muted" style={{ fontVariantNumeric: 'tabular-nums' }}>
+            {callTime(now - started.current)}
+          </div>
+          <button className="btn danger" style={{ marginTop: 12 }} onClick={finish}>
+            Hang up
+          </button>
+        </div>
+      )}
       {showText ? (
         <div className="chat card" style={{ minHeight: 260 }}>
           {turns.map((t, k) => (

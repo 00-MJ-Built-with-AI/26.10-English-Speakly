@@ -159,3 +159,48 @@ describe('voices', () => {
     expect(google).toBeGreaterThan(david);
   });
 });
+
+describe('accent check-up', () => {
+  it('scores sounds from phonemes, clusters from words, stress from prosody', async () => {
+    const { checkupScores } = await import('../src/engine/checkup.ts');
+    const { CHECKUP_PASSAGE } = await import('../src/content/checkup.ts');
+    expect(CHECKUP_PASSAGE).toMatch(/Thursday/);
+    const a: Assessment = {
+      engine: 'azure', text: 'three screen', accuracy: 80, fluency: 80, completeness: 100, prosody: 72, pron: 80,
+      startDelayMs: 0, speechMs: 1000, wordsPerMinute: 120, longPauses: 0,
+      words: [
+        { word: 'three', accuracy: 70, error: 'None', phonemes: [{ phoneme: 'θ', accuracy: 40 }, { phoneme: 'ɹ', accuracy: 90 }, { phoneme: 'i', accuracy: 95 }] },
+        { word: 'screen', accuracy: 88, error: 'None', phonemes: [] },
+      ],
+    };
+    const s = checkupScores(a);
+    expect(s['th-voiceless']).toBe(40);
+    expect(s['r']).toBe(90);
+    expect(s['clusters-start']).toBe(88);
+    expect(s['word-stress']).toBe(72);
+    expect(s['p-b']).toBeUndefined();
+  });
+});
+
+describe('tutor memory', () => {
+  it('merges facts newest first without duplicates', async () => {
+    const { mergeNotes, rememberSession } = await import('../src/engine/memory.ts');
+    expect(mergeNotes(['Lives in Dubai', 'Has two kids'], ['lives in Dubai.', 'Works as a PM'], 3)).toEqual(['lives in Dubai.', 'Works as a PM', 'Has two kids']);
+    const u = emptyUser();
+    rememberSession(u, ['Works as a PM'], 'Remote work');
+    expect(u.memory).toEqual({ facts: ['Works as a PM'], topics: ['Remote work'] });
+  });
+});
+
+describe('rhythm marks', () => {
+  it('marks stress, weak forms and linking', async () => {
+    const { annotate } = await import('../src/engine/rhythm.ts');
+    const t = annotate('Pick it up and put it on the table.');
+    expect(t.map((x) => x.linkNext)).toEqual([true, true, true, false, true, true, false, false, false]);
+    expect(t.find((x) => x.text === 'the')?.stress).toBe('weak');
+    expect(t.find((x) => x.text === 'table.')?.stress).toBe('strong');
+    expect(annotate("We didn't expect it")[1].stress).toBe('strong');
+    expect(annotate('Make it, please')[0].linkNext).toBe(true);
+    expect(annotate('Make it, please')[1].linkNext).toBe(false);
+  });
+});

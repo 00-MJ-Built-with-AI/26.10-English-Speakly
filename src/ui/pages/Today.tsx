@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { soundById, SOUNDS } from '../../content/sounds.ts';
 import { UNITS } from '../../content/units.ts';
 import { promptOfTheDay } from '../../content/journal.ts';
+import { idiomOfTheDay } from '../../content/idioms.ts';
+import { CHECKUP_EVERY_DAYS } from '../../content/checkup.ts';
 import { currentUnit, unitState } from '../../engine/path.ts';
 import { minutesToday, streak } from '../../engine/progress.ts';
 import { overallSpeaking, toeflBandOf } from '../../engine/scoring.ts';
@@ -10,7 +12,7 @@ import { levelFromXp } from '../../engine/gamification.ts';
 import { LEARNED_BOX, startOfDay } from '../../engine/srs.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
-import { SKILLS, type Attempt, type Mistake, type UnitPart, type VocabItem } from '../../lib/types.ts';
+import { SKILLS, type Attempt, type Checkup, type Mistake, type UnitPart, type VocabItem } from '../../lib/types.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ScoreRing, SKILL_COLORS, SKILL_LABELS } from '../components/ScoreRing.tsx';
 
@@ -33,9 +35,11 @@ export function Today() {
   const [due, setDue] = useState(0);
   const [today, setToday] = useState<Attempt[]>([]);
   const [vocabDue, setVocabDue] = useState(0);
+  const [lastCheckup, setLastCheckup] = useState<number | null | undefined>(undefined);
   useEffect(() => {
     repo.list<Mistake>('mistakes', { dueBefore: Date.now() }).then((m) => setDue(m.filter((x) => x.box < LEARNED_BOX).length));
     repo.list<Attempt>('attempts', { since: startOfDay(Date.now()) }).then(setToday);
+    repo.list<Checkup>('checkups', { limit: 1 }).then((c) => setLastCheckup(c[0]?.at ?? null));
     repo.list<VocabItem>('vocab', { dueBefore: Date.now() }).then((v) => setVocabDue(v.filter((x) => x.box < LEARNED_BOX).length));
   }, [repo]);
 
@@ -79,6 +83,11 @@ export function Today() {
   const examWeeks = exam.phase === 'final' || exam.phase === 'focus';
   if (!examWeeks && dow % 2 === 0 && unit) plan.push({ to: `/tutor?kind=roleplay&unit=${unit.id}`, icon: 'users', title: `Role-play: ${unit.roleplay.title}`, desc: 'Real situation with the tutor', minutes: 8, done: didToday(['roleplay']) });
   else if (!examWeeks) plan.push({ to: '/tutor', icon: 'chat', title: 'Conversation with your tutor', desc: 'Hands-free, any topic', minutes: 8, done: didToday(['tutor']) });
+  const idiom = idiomOfTheDay();
+  plan.push({ to: '/idiom', icon: 'spark', title: `Idiom of the day: ${idiom.phrase}`, desc: idiom.meaning, minutes: 2, done: didToday(['idiom']) });
+  if (lastCheckup !== undefined && (lastCheckup == null || Date.now() - lastCheckup > CHECKUP_EVERY_DAYS * 86_400_000)) {
+    plan.push({ to: '/checkup', icon: 'target', title: 'Monthly accent check-up', desc: lastCheckup == null ? 'Your first one: a baseline for every sound' : 'A month since your last one', minutes: 2, done: didToday(['checkup']) });
+  }
   plan.push({ to: '/journal', icon: 'book', title: 'Speaking journal', desc: promptOfTheDay(), minutes: 3, done: didToday(['journal']) });
   plan.push({ to: '/practice/fast', icon: 'bolt', title: 'Speak fast warm-up', desc: 'Start talking within 3 seconds', minutes: 3, done: didToday(['fast']) });
 

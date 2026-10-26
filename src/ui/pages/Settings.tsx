@@ -120,6 +120,33 @@ export function SettingsPage() {
         </label>
       </div>
 
+      <div className="card stack">
+        <div className="toggle" style={{ paddingTop: 0 }}>
+          <span>
+            <h3 style={{ margin: 0 }}>Tutor memory</h3>
+            <div className="small muted">The tutor remembers facts you mention, recent topics, and the phrases and mistakes you're working on, so conversations don't start from zero.</div>
+          </span>
+          <input type="checkbox" checked={s.tutorMemory} onChange={(e) => set('tutorMemory', e.target.checked)} />
+        </div>
+        {user.memory.facts.length > 0 ? (
+          <>
+            {user.memory.facts.map((f) => (
+              <div key={f} className="spread small" style={{ borderBottom: '1px solid var(--line)', padding: '4px 0' }}>
+                <span>{f}</span>
+                <button className="btn ghost small" aria-label="Forget this" onClick={() => update((u) => (u.memory.facts = u.memory.facts.filter((x) => x !== f)))}>
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+            ))}
+            <button className="btn small danger" style={{ alignSelf: 'flex-start' }} onClick={() => confirm('Forget everything the tutor remembers?') && update((u) => (u.memory = { facts: [], topics: [] }))}>
+              Forget everything
+            </button>
+          </>
+        ) : (
+          <div className="small faint">Nothing remembered yet. Facts appear here after conversations.</div>
+        )}
+      </div>
+
       <div className="card">
         <h3>Goals and data</h3>
         <label className="field">

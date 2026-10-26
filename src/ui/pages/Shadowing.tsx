@@ -7,6 +7,7 @@ import { useApp } from '../../lib/store.tsx';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
 import { IntonationGraph } from '../components/IntonationGraph.tsx';
+import { RhythmLegend, RhythmText } from '../components/RhythmText.tsx';
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -21,6 +22,13 @@ export function Shadowing({ unitId, custom, onBack }: { unitId?: string; custom?
   const [loading, setLoading] = useState(false);
   const [i, setI] = useState(0);
   const [hide, setHide] = useState(false);
+  const [rhythm, setRhythm] = useState(() => {
+    try {
+      return localStorage.getItem('speakly:rhythm') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [results, setResults] = useState<Record<number, Assessment>>({});
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +136,21 @@ export function Shadowing({ unitId, custom, onBack }: { unitId?: string; custom?
           <label className="row small">
             <input type="checkbox" checked={hide} onChange={(e) => setHide(e.target.checked)} /> Hide text
           </label>
+          <label className="row small">
+            <input
+              type="checkbox"
+              checked={rhythm}
+              onChange={(e) => {
+                setRhythm(e.target.checked);
+                try {
+                  localStorage.setItem('speakly:rhythm', e.target.checked ? '1' : '0');
+                } catch {
+                  /* not saved; fine */
+                }
+              }}
+            />{' '}
+            Rhythm marks
+          </label>
           {!custom && (
             <button className="btn small" onClick={newSet} disabled={loading}>
               <Icon name="refresh" size={16} /> {loading ? 'Making…' : 'New sentences'}
@@ -152,8 +175,9 @@ export function Shadowing({ unitId, custom, onBack }: { unitId?: string; custom?
             </div>
           </div>
           <div className="prompt-text" style={{ filter: hide && !r ? 'blur(7px)' : undefined }}>
-            {r ? <WordScores a={r} /> : s}
+            {r ? <WordScores a={r} /> : rhythm ? <RhythmText text={s} /> : s}
           </div>
+          {rhythm && !r && <RhythmLegend />}
           {r && (
             <div className="stack">
               <ScoreChips a={r} />

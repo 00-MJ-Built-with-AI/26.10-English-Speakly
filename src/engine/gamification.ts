@@ -15,6 +15,14 @@ const KIND_BONUS: Partial<Record<Attempt['kind'], number>> = {
   review: 10,
   vocab: 10,
   fillers: 10,
+  debate: 15,
+  phone: 15,
+  interview: 20,
+  smalltalk: 10,
+  retell: 10,
+  checkup: 20,
+  car: 10,
+  idiom: 5,
 };
 export const UNIT_BONUS = 50;
 
@@ -81,6 +89,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'mistakes-25', title: 'Mistake fixer', desc: 'Fully fix 25 mistakes in review.', icon: 'repeat', test: (u) => count(u, 'mistakesLearned') >= 25, progress: (u) => [Math.min(count(u, 'mistakesLearned'), 25), 25] },
   { id: 'quick-start', title: 'Quick starter', desc: 'Average under 1.5 s to start in a speak-fast drill.', icon: 'bolt', test: (_u, a) => a?.kind === 'fast' && a.hesitation != null && a.hesitation.startDelayMs < 1500 },
   { id: 'smooth-minute', title: 'Smooth talker', desc: 'Speak for a minute with a smoothness of 90+.', icon: 'wave', test: (_u, a) => a?.hesitation != null && a.hesitation.speechMs >= 60_000 && a.hesitation.score >= 90 },
+  { id: 'debater', title: 'Debater', desc: 'Finish 3 debates.', icon: 'users', test: (u) => kindCount(u, 'debate') >= 3, progress: (u) => [Math.min(kindCount(u, 'debate'), 3), 3] },
+  { id: 'phone-pro', title: 'Phone pro', desc: 'Handle 5 phone calls.', icon: 'chat', test: (u) => kindCount(u, 'phone') >= 5, progress: (u) => [Math.min(kindCount(u, 'phone'), 5), 5] },
+  { id: 'interview-ready', title: 'Interview ready', desc: 'Finish a mock interview for a real job ad.', icon: 'trophy', test: (u) => kindCount(u, 'interview') >= 1 },
+  { id: 'checkups-3', title: 'Tracking progress', desc: 'Do 3 monthly accent check-ups.', icon: 'target', test: (u) => kindCount(u, 'checkup') >= 3, progress: (u) => [Math.min(kindCount(u, 'checkup'), 3), 3] },
   { id: 'hour-1', title: 'First hour', desc: 'Practise for 60 minutes in total.', icon: 'chart', test: (u) => minutes(u) >= 60, progress: (u) => [Math.min(minutes(u), 60), 60] },
   { id: 'hours-10', title: 'Ten hours', desc: 'Practise for 10 hours in total.', icon: 'chart', test: (u) => minutes(u) >= 600, progress: (u) => [Math.min(minutes(u), 600), 600] },
 ];

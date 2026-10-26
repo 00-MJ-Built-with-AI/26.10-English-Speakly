@@ -31,6 +31,11 @@ import { Better } from './ui/pages/Better.tsx';
 import { Vocab } from './ui/pages/Vocab.tsx';
 import { MyTexts } from './ui/pages/MyTexts.tsx';
 import { Achievements } from './ui/pages/Achievements.tsx';
+import { Debate, InterviewPrep, PhoneCalls, SmallTalk } from './ui/pages/Scenes.tsx';
+import { Retell } from './ui/pages/Retell.tsx';
+import { Checkup } from './ui/pages/Checkup.tsx';
+import { Car } from './ui/pages/Car.tsx';
+import { IdiomPage } from './ui/pages/IdiomPage.tsx';
 
 export function App() {
   if (!hasFirebase) return <LocalApp />;
@@ -109,8 +114,8 @@ function SignIn() {
 const TABS: { to: string; label: string; icon: string; match: string[] }[] = [
   { to: '/today', label: 'Today', icon: 'home', match: ['today', ''] },
   { to: '/path', label: 'Path', icon: 'path', match: ['path', 'unit', 'grammar', 'placement'] },
-  { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab'] },
-  { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor'] },
+  { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab', 'retell', 'checkup', 'car', 'idiom'] },
+  { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor', 'debate', 'phone', 'smalltalk', 'interview-prep'] },
   { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl'] },
   { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements'] },
 ];
@@ -156,6 +161,30 @@ function Shell() {
       break;
     case 'vocab':
       page = <Vocab />;
+      break;
+    case 'debate':
+      page = <Debate />;
+      break;
+    case 'phone':
+      page = <PhoneCalls />;
+      break;
+    case 'smalltalk':
+      page = <SmallTalk />;
+      break;
+    case 'interview-prep':
+      page = <InterviewPrep />;
+      break;
+    case 'retell':
+      page = <Retell />;
+      break;
+    case 'checkup':
+      page = <Checkup />;
+      break;
+    case 'car':
+      page = <Car />;
+      break;
+    case 'idiom':
+      page = <IdiomPage />;
       break;
     case 'roleplays':
       page = <Roleplays />;
