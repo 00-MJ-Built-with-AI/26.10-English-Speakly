@@ -75,10 +75,19 @@ npm run dev
 Open <http://localhost:5190>. With Firebase configured, remove `ALLOW_UNAUTHENTICATED` from `.env.local`.
 Use Chrome or Edge, allow the microphone, and wear headphones for hands-free conversations.
 
-## 5. Put it online (Vercel)
+## 5. Online (Vercel)
 
-1. `npx vercel` in `speakly-app` (or import the GitHub repo at <https://vercel.com/new>). Framework: Vite.
-2. In the Vercel project → **Settings → Environment Variables**, add every variable from `.env.local`
-   **except** `ALLOW_UNAUTHENTICATED`.
-3. Deploy, then add the Vercel domain to Firebase **Authorized domains** (step 1.7).
+The app is already deployed: Vercel project **speakly** (team mohammadjouzas-projects), live at
+<https://speakly-puce-gamma.vercel.app>. The GitHub repo is connected, so every push to `main` deploys
+automatically. Until the keys below are added, the live site runs in test mode.
+
+1. Vercel dashboard → **speakly → Settings → Environment Variables**: add every variable from the lists
+   above (Production and Preview), **except** `ALLOW_UNAUTHENTICATED`. The `VITE_FIREBASE_*` ones are read
+   at build time, so redeploy after adding them (Deployments → ... → Redeploy, or push a commit).
+2. Firebase → Authentication → Settings → **Authorized domains** → add `speakly-puce-gamma.vercel.app`.
+3. **Deployment Protection**: Vercel protects new projects so visitors must log in to Vercel first. The app
+   has its own Google sign-in and `ALLOWED_EMAILS`, so you can turn this off in Settings → Deployment
+   Protection → Vercel Authentication, or keep it and stay logged in to Vercel on your devices.
 4. On your phone, open the site in Chrome → menu → **Add to Home screen** to install it as an app.
+
+Manual deploy from this folder (optional): `npx vercel build --prod` then `npx vercel deploy --prebuilt --prod`.

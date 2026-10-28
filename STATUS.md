@@ -82,4 +82,5 @@
 1. Create Firebase project (Google sign-in, Firestore, Blaze + Storage, rules), copy web config.
 2. Create Azure Speech resource, copy key and region.
 3. Create Anthropic API key; optionally pick a cheaper TUTOR_MODEL.
-4. Deploy to Vercel once the keys exist (repo: github.com/00-MJ-Built-with-AI/26.10-English-Speakly).
+4. Add the keys as Vercel environment variables (project `speakly`, live at speakly-puce-gamma.vercel.app,
+   auto-deploys from GitHub main) and decide on Vercel Deployment Protection.
