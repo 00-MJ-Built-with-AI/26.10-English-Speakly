@@ -1,6 +1,7 @@
 import type { ChatKind, CorrectionStyle, ErrorItem, Level } from '../../shared/tasks.ts';
 import type { HesitationStats } from '../engine/hesitation.ts';
 import { DEFAULT_VOICE } from '../speech/voices.ts';
+import type { MicCheckResult } from '../engine/audiocheck.ts';
 
 export type { Level, CorrectionStyle, ErrorItem };
 
@@ -45,6 +46,11 @@ export interface Settings {
   showGamification: boolean;
   /** Let the tutor remember facts, topics and phrases between sessions. */
   tutorMemory: boolean;
+  /** Daily spending limit in US dollars for the AI tutor and Azure (0 = no limit). */
+  dailyCapUsd: number;
+  /** Estimated prices, editable: Azure speech recognition per hour, voices per million characters. */
+  rates: { sttPerHour: number; ttsPerMillion: number; hdTtsPerMillion: number };
+  theme: 'system' | 'light' | 'dark';
   /** Arabic dialect for "Say it better" (Azure locale). */
   arabicLocale: string;
 }
@@ -60,6 +66,9 @@ export const DEFAULT_SETTINGS: Settings = {
   handsFree: true,
   showGamification: true,
   tutorMemory: true,
+  dailyCapUsd: 1,
+  rates: { sttPerHour: 1, ttsPerMillion: 15, hdTtsPerMillion: 30 },
+  theme: 'system',
   arabicLocale: 'ar-JO',
 };
 
@@ -85,6 +94,16 @@ export interface UserDoc {
   memory: { facts: string[]; topics: string[] };
   /** Saved job ad and CV for interview practice. */
   interviewPrep?: { ad: string; cv: string };
+  micCheck?: MicCheckResult;
+  /** Estimated spending by local date. */
+  usage: Record<string, UsageDay>;
+  /** First-run setup finished. */
+  onboarded: boolean;
+  /** Earlier official test scores (e.g. EF SET), for comparison. */
+  baseline?: Baseline;
+  weeklyFocus?: WeeklyFocus;
+  /** Best result per tongue twister id. */
+  twisters: Record<string, { accuracy: number; wpm: number }>;
 }
 
 export function emptyUser(name = ''): UserDoc {
@@ -102,6 +121,9 @@ export function emptyUser(name = ''): UserDoc {
     achievements: {},
     counts: {},
     memory: { facts: [], topics: [] },
+    usage: {},
+    onboarded: false,
+    twisters: {},
   };
 }
 
@@ -110,12 +132,15 @@ export function migrateUser(u: UserDoc): UserDoc {
   return {
     ...emptyUser(u.name),
     ...u,
-    // The first default voice was the standard Ava; move to the more natural HD Ava.
-    settings: { ...DEFAULT_SETTINGS, ...u.settings, voice: u.settings?.voice === 'en-US-AvaMultilingualNeural' ? DEFAULT_VOICE : (u.settings?.voice ?? DEFAULT_VOICE) },
     xp: u.xp ?? 0,
     achievements: u.achievements ?? {},
     counts: u.counts ?? {},
     memory: u.memory ?? { facts: [], topics: [] },
+    usage: u.usage ?? {},
+    onboarded: u.onboarded ?? false,
+    twisters: u.twisters ?? {},
+    // The first default voice was the standard Ava; move to the more natural HD Ava.
+    settings: { ...DEFAULT_SETTINGS, ...u.settings, rates: { ...DEFAULT_SETTINGS.rates, ...u.settings?.rates }, voice: u.settings?.voice === 'en-US-AvaMultilingualNeural' ? DEFAULT_VOICE : (u.settings?.voice ?? DEFAULT_VOICE) },
   };
 }
 
@@ -156,7 +181,43 @@ export type AttemptKind =
   | 'car'
   | 'interview'
   | 'smalltalk'
-  | 'idiom';
+  | 'idiom'
+  | 'numbers'
+  | 'opinion'
+  | 'story'
+  | 'twister';
+
+export interface UsageDay {
+  /** Estimated dollars spent on the AI tutor. */
+  ai: number;
+  /** Estimated dollars spent on Azure speech (recognition + voices). */
+  speech: number;
+  aiCalls: number;
+  sttSec: number;
+  ttsChars: number;
+}
+
+export interface Baseline {
+  test: string;
+  date: string;
+  reading?: number;
+  listening?: number;
+  writing?: number;
+  speaking?: number;
+}
+
+export interface FocusItem {
+  kind: 'sound' | 'hesitation' | 'skill' | 'mistakes';
+  label: string;
+  why: string;
+  to: string;
+}
+
+export interface WeeklyFocus {
+  /** Monday of the week, YYYY-MM-DD. */
+  week: string;
+  items: FocusItem[];
+}
 
 export interface Mistake {
   id?: string;

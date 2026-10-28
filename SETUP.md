@@ -59,6 +59,12 @@ for the live site; **never commit them**.
    Requests that a safety filter declines are retried automatically on a fallback model
    (`fallbacks: "default"`), so a conversation doesn't stop on a false positive.
 
+## Spending limits
+
+The app shows estimated spending in Settings and stops the paid services at a daily limit you choose
+(default $1). That limit is enforced by the app, so for a hard stop also set a monthly spend limit in the
+Anthropic console (Settings > Limits) and a budget alert in Azure (Cost Management > Budgets).
+
 ## 4. Run it on your computer
 
 ```

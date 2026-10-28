@@ -227,6 +227,27 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         corrections: findErrors(t),
       } as TaskMap[K][1];
     }
+    case 'opinion': {
+      const t = String(i.transcript ?? '');
+      const has = (re: RegExp) => {
+        const m = t.match(re);
+        return { present: Boolean(m), quote: m ? m[0] : '' };
+      };
+      const parts = {
+        point: has(/\b(i think|in my opinion|i believe|i feel|personally)\b[^.]*/i),
+        reason: has(/\b(because|since|the (main )?reason)\b[^.]*/i),
+        example: has(/\b(for example|for instance|like when|once|last (year|week|month))\b[^.]*/i),
+        conclusion: has(/\b(so|overall|that's why|in the end|to sum up)\b[^.]*\.?\s*$/i),
+      };
+      const n = Object.values(parts).filter((p) => p.present).length;
+      return {
+        ...parts,
+        band: Math.max(1, Math.min(6, 1 + n + Math.min(1, countWords(t) / 120))),
+        feedback: '(Test mode) Structure is found by key phrases only. Add the AI key for real feedback.',
+        betterAnswer: 'In my opinion, ... The main reason is that ... For example, ... So overall, ...',
+        corrections: findErrors(t),
+      } as TaskMap[K][1];
+    }
     case 'define':
       return { meaning: '(Test mode) Add the AI key to get meanings automatically.', example: String(i.phrase ?? '') } as TaskMap[K][1];
     case 'weekly':

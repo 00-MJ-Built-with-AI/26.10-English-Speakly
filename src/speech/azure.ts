@@ -4,6 +4,8 @@ import { micStream, VoiceRecorder } from './mic.ts';
 import { combine, typedAssessment, type Segment } from './score.ts';
 import { DEFAULT_VOICE, isHdVoice, standardVoiceFor } from './voices.ts';
 import { phoneLine } from './fx.ts';
+import { capReached, recordListening, recordVoice } from '../lib/usage.ts';
+import { BrowserEngine } from './browser.ts';
 import {
   ListenCancelled,
   type Assessment,
@@ -82,7 +84,11 @@ export class AzureEngine implements SpeechEngine {
   private cache = new Map<string, Promise<string>>();
   private finishSpeaking?: () => void;
 
+  /** Free browser speech, used once today's spending limit is reached. */
+  private free = new BrowserEngine();
+
   listen(opts: ListenOptions): ListenHandle {
+    if (capReached()) return this.free.listen(opts);
     let stopFn: () => void = () => {};
     let cancelled = false;
     let typed: string | undefined;
@@ -184,6 +190,7 @@ export class AzureEngine implements SpeechEngine {
           (err) => reject(new Error(err)),
         );
       }).finally(() => {
+        recordListening((performance.now() - startedAt) / 1000);
         recognizer.close();
         input.getTracks().forEach((t) => t.stop());
       });
@@ -223,6 +230,7 @@ export class AzureEngine implements SpeechEngine {
         const sdk = await loadSdk();
         const cfg = await speechConfig(sdk);
         cfg.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio24Khz48KBitRateMonoMp3;
+        recordVoice(text.length, isHdVoice(voice));
         const synth = new sdk.SpeechSynthesizer(cfg, null as unknown as SDK.AudioConfig);
         const data = await new Promise<ArrayBuffer>((resolve, reject) =>
           synth.speakSsmlAsync(
@@ -254,15 +262,18 @@ export class AzureEngine implements SpeechEngine {
   }
 
   async modelAudio(text: string, opts: SpeakOptions = {}): Promise<Blob | null> {
+    if (capReached()) return null;
     return (await fetch(await this.synth(text, opts))).blob();
   }
 
   prefetch(text: string, opts: SpeakOptions = {}): void {
+    if (capReached()) return;
     this.synth(text, opts).catch(() => {});
   }
 
   async speak(text: string, opts: SpeakOptions = {}): Promise<void> {
     this.stopSpeaking();
+    if (capReached()) return this.free.speak(text, opts);
     const url = await this.synth(text, opts);
     await new Promise<void>((resolve) => {
       this.finishSpeaking = resolve;
@@ -278,6 +289,7 @@ export class AzureEngine implements SpeechEngine {
   }
 
   stopSpeaking(): void {
+    this.free.stopSpeaking();
     this.audio.pause();
     this.finishSpeaking?.();
     this.finishSpeaking = undefined;

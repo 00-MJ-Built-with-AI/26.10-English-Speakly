@@ -11,6 +11,7 @@ import { useApp } from '../../lib/store.tsx';
 import { SKILLS, type Attempt, type Mistake, type Skill } from '../../lib/types.ts';
 import { LEVELS } from '../../../shared/tasks.ts';
 import { Icon } from '../components/Icon.tsx';
+import { BaselineCompare } from '../components/Baseline.tsx';
 import { ScoreRing, SKILL_COLORS, SKILL_LABELS } from '../components/ScoreRing.tsx';
 
 export function ProgressPage() {
@@ -75,6 +76,8 @@ export function ProgressPage() {
           <Stat label="Confirmed level" value={confirmedLevel(user) ?? 'Not yet'} hint="Every unit up to this level is done" />
         </div>
       </div>
+
+      <BaselineCompare />
 
       <div className="card">
         <h3>Skills over time</h3>
@@ -176,6 +179,9 @@ export function ProgressPage() {
             </a>
             <a className="btn" href={href('/practice/fillers')}>
               <Icon name="wave" size={16} /> Fillers and pauses
+            </a>
+            <a className="btn" href={href('/report')}>
+              <Icon name="book" size={16} /> Progress report (PDF)
             </a>
             {user.settings.showGamification && (
               <a className="btn" href={href('/achievements')}>

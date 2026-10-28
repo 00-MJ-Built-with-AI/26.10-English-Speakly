@@ -1,4 +1,6 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import Anthropic from '@anthropic-ai/sdk';
+import { USAGE_MARK, type TokenUsage } from '../shared/pricing.ts';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import type { z } from 'zod';
 import {
@@ -14,6 +16,8 @@ import {
   GenRetell,
   RetellResult,
   type RetellInput,
+  OpinionResult,
+  type OpinionInput,
   GradeResult,
   ReportResult,
   TaskResult,
@@ -40,6 +44,17 @@ const FALLBACK = (): { betas: Anthropic.Beta.AnthropicBeta[]; fallbacks: 'defaul
   betas: ['server-side-fallback-2026-07-01'],
   fallbacks: 'default',
 });
+
+/** Token usage of the current request, sent back so the app can show spending. */
+const meter = new AsyncLocalStorage<TokenUsage>();
+function count(u: { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null }) {
+  const m = meter.getStore();
+  if (!m) return;
+  m.input += u.input_tokens;
+  m.output += u.output_tokens;
+  m.cacheRead += u.cache_read_input_tokens ?? 0;
+  m.cacheWrite += u.cache_creation_input_tokens ?? 0;
+}
 
 let client: Anthropic | undefined;
 function anthropic(): Anthropic {
@@ -77,6 +92,8 @@ function chat(input: ChatInput): Response {
         }
         const final = await stream.finalMessage();
         if (final.stop_reason === 'refusal') controller.enqueue(encoder.encode(" Let's talk about something else. What did you do today?"));
+        const u: TokenUsage = { model: MODEL, input: final.usage.input_tokens, output: final.usage.output_tokens, cacheRead: final.usage.cache_read_input_tokens ?? 0, cacheWrite: final.usage.cache_creation_input_tokens ?? 0 };
+        controller.enqueue(encoder.encode(USAGE_MARK + JSON.stringify(u)));
       } catch (err) {
         console.error(err);
         controller.enqueue(encoder.encode('\n[[error]]'));
@@ -99,6 +116,7 @@ async function structured<S extends z.ZodType>(schema: S, prompt: string, effort
     messages: [{ role: 'user', content: prompt }],
     ...FALLBACK(),
   });
+  count(res.usage);
   if (res.stop_reason === 'refusal' || !res.parsed_output) throw new HttpError(502, 'The tutor could not grade this one. Try again.');
   return res.parsed_output as z.infer<S>;
 }
@@ -165,6 +183,12 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
       `Listen-and-retell exercise, learner level ${i.level}. The original passage:\n"${i.text}"\nKey points (in order): ${json(i.keyPoints)}\nThe learner's spoken retelling (speech transcript): "${i.transcript}"\n\ncovered must have exactly ${i.keyPoints.length} booleans. Paraphrasing is good; don't require the original words.`,
       'medium',
     ),
+  opinion: (i: OpinionInput) =>
+    structured(
+      OpinionResult,
+      `60-second opinion answer, learner level ${i.level}. Question: "${i.question}". They spoke for ${Math.round(i.seconds)} seconds. Transcript: "${i.transcript}"\n\nCheck the structure: a clear point, a reason, a concrete example, and a conclusion. Count a part as present only if it is really there; quote the learner's words for it. Then give a band and feedback.`,
+      'medium',
+    ),
   weekly: (i: WeeklyInput) =>
     structured(WeeklyResult, `Write this learner's weekly speaking report from these numbers:\n${json(i)}\nBe specific, warm and brief.`, 'low'),
 };
@@ -176,7 +200,9 @@ export async function POST(request: Request): Promise<Response> {
     if (task === 'chat') return chat(input as ChatInput);
     const run = TASKS[task];
     if (!run) throw new HttpError(400, `Unknown task ${task}`);
-    return Response.json(await run(input as never), { headers: { 'Cache-Control': 'no-store' } });
+    const usage: TokenUsage = { model: MODEL, input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+    const result = await meter.run(usage, () => run(input as never));
+    return Response.json(result, { headers: { 'Cache-Control': 'no-store', 'X-Usage': JSON.stringify(usage) } });
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) return Response.json({ error: 'The tutor is busy. Try again in a moment.' }, { status: 429 });
     if (err instanceof Anthropic.AuthenticationError) return Response.json({ error: 'The Anthropic API key was rejected.' }, { status: 503 });

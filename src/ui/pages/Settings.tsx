@@ -6,6 +6,9 @@ import { useApp } from '../../lib/store.tsx';
 import { emptyUser, type CorrectionStyle, type Settings } from '../../lib/types.ts';
 import { Icon } from '../components/Icon.tsx';
 import { useSpeak } from '../components/speaking.tsx';
+import { SpendingCard } from '../components/Spending.tsx';
+import { BaselineForm } from '../components/Baseline.tsx';
+import { href } from '../../lib/router.ts';
 
 /** English voices the browser offers, most natural first (used until Azure is connected). */
 function useBrowserVoices(active: boolean) {
@@ -120,6 +123,30 @@ export function SettingsPage() {
         </label>
       </div>
 
+      <SpendingCard />
+
+      <div className="card stack">
+        <div className="spread">
+          <div>
+            <h3 style={{ margin: 0 }}>Microphone</h3>
+            <div className="small muted">
+              {user.micCheck
+                ? `Last check ${new Date(user.micCheck.at).toLocaleDateString()}: ${user.micCheck.ok ? (user.micCheck.issues.length ? 'usable, with tips' : 'all good') : 'needs fixing'}.`
+                : 'Not checked yet. A noisy room or a bad mic makes scores unfair.'}
+            </div>
+          </div>
+          <a className="btn small" href={href('/mic-check')}>
+            <Icon name="mic" size={16} /> Check microphone
+          </a>
+        </div>
+      </div>
+
+      <div className="card stack">
+        <h3 style={{ margin: 0 }}>Earlier test scores</h3>
+        <div className="small muted">Scores from an earlier English test, to compare with your progress here.</div>
+        <BaselineForm />
+      </div>
+
       <div className="card stack">
         <div className="toggle" style={{ paddingTop: 0 }}>
           <span>
@@ -174,6 +201,14 @@ export function SettingsPage() {
             </select>
           </label>
         </div>
+        <label className="field" style={{ marginTop: 12 }}>
+          <span>Appearance</span>
+          <select value={s.theme} onChange={(e) => set('theme', e.target.value as typeof s.theme)}>
+            <option value="system">Follow my system</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
         <div className="toggle">
           <span>Show XP and badges</span>
           <input type="checkbox" checked={s.showGamification} onChange={(e) => set('showGamification', e.target.checked)} />

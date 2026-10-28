@@ -23,6 +23,10 @@ const KIND_BONUS: Partial<Record<Attempt['kind'], number>> = {
   checkup: 20,
   car: 10,
   idiom: 5,
+  numbers: 10,
+  opinion: 10,
+  story: 10,
+  twister: 5,
 };
 export const UNIT_BONUS = 50;
 

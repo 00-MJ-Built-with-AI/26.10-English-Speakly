@@ -3,6 +3,8 @@ import { applySkills } from '../engine/scoring.ts';
 import { addPractice } from '../engine/progress.ts';
 import { newMistake, sameMistake } from '../engine/srs.ts';
 import { rewardAttempt } from '../engine/gamification.ts';
+import { dateKey } from '../engine/progress.ts';
+import { addUsage, connectUsage, dayTotal } from './usage.ts';
 import { getEngine, type SpeechEngine } from '../speech/index.ts';
 import { serverStatus, type ServerStatus } from './api.ts';
 import type { Repo } from './repo.ts';
@@ -106,6 +108,26 @@ export function AppProvider({ repo, account, signOut, children }: { repo: Repo; 
     },
     [flush],
   );
+
+  // Spending: engines and the API client report usage; keep 90 days and enforce the daily cap.
+  const rates = user?.settings.rates;
+  useEffect(() => {
+    if (!rates) return;
+    connectUsage(
+      (delta) =>
+        update((u) => {
+          const k = dateKey();
+          u.usage[k] = addUsage(u.usage[k], delta);
+          const keys = Object.keys(u.usage).sort();
+          for (const old of keys.slice(0, Math.max(0, keys.length - 90))) delete u.usage[old];
+        }),
+      rates,
+      () => {
+        const u = latest.current;
+        return Boolean(u && u.settings.dailyCapUsd > 0 && dayTotal(u.usage[dateKey()]) >= u.settings.dailyCapUsd);
+      },
+    );
+  }, [rates, update]);
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const notify = useCallback((text: string, kind: Toast['kind'] = 'info') => {

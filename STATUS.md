@@ -52,6 +52,21 @@
   (`/car`, eyes-free, wake lock), idiom of the day (`/idiom`, 50 idioms), stress and linking marks in
   shadowing, new XP bonuses and 4 badges. 30 unit tests.
 
+## Batch 4 (2026-10-29)
+- Mic and audio check (`/mic-check`, also in first-run setup and Settings): noise, voice level, echo from
+  speakers, test-sentence recognition, with fixes.
+- Spending: server reports token usage (`X-Usage` header, usage after a NUL mark in the chat stream); the
+  app prices it (`shared/pricing.ts`) plus editable Azure estimates, shows today/month in Settings, warns on
+  Today, and at the daily limit pauses the AI tutor and switches speech to the free browser engine.
+- First-run setup (`/welcome`): name, goals, earlier scores, mic check, then the level test.
+- Practice page in 5 groups with a data-based "Start here" in each.
+- Earlier test scores (EF SET etc.) with then-vs-now on Progress.
+- Weekly focus: every Monday the two weakest areas (sound, hesitation, skill, mistake bank) go on Today.
+- Progress report (`/report`): one page, print / Save as PDF.
+- Light/dark switch (header button and Settings).
+- Numbers and spelling (`/numbers`), 60-second opinion with structure coach (`/opinion`), story builder
+  (`/story`), tongue twisters by weakest sound with speed levels (`/twisters`). 38 unit tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.
@@ -60,6 +75,8 @@
 - Arabic recognition for "Say it better" and the intonation graph on real recordings (need Azure + mic).
 - Passing a level in the fast-track test (needs real speech; logic is unit-tested).
 - HD voices on the user's Azure resource; phone-line filter on real Azure audio; car mode on a phone.
+- Spending numbers against real Anthropic/Azure bills (Azure rates are editable estimates); the mic check
+  thresholds on a real microphone.
 
 ## Owner actions
 1. Create Firebase project (Google sign-in, Firestore, Blaze + Storage, rules), copy web config.

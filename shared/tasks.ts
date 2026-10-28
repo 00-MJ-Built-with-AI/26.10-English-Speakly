@@ -277,6 +277,26 @@ export interface DefineInput {
   level: Level;
 }
 
+// ---- opinion: a 60-second answer with a clear structure ----
+const Part = z.object({ present: z.boolean(), quote: z.string().describe('The learner\'s words for this part, or empty') });
+export const OpinionResult = z.object({
+  point: Part.describe('A clear opinion or answer to the question'),
+  reason: Part.describe('At least one reason supporting it'),
+  example: Part.describe('A concrete example, story or detail'),
+  conclusion: Part.describe('A closing sentence that sums up or restates the point'),
+  band: z.number().describe('1 to 6 in steps of 0.5, TOEFL-style speaking band'),
+  feedback: z.string().describe('2 sentences: structure first, then language'),
+  betterAnswer: z.string().describe('A model 60-second answer (about 110-140 words) with all four parts, at the learner level plus one'),
+  corrections: z.array(ErrorItem),
+});
+export type OpinionResult = z.infer<typeof OpinionResult>;
+export interface OpinionInput {
+  level: Level;
+  question: string;
+  transcript: string;
+  seconds: number;
+}
+
 export interface TaskMap {
   check: [CheckInput, CheckResult];
   report: [ReportInput, ReportResult];
@@ -289,5 +309,6 @@ export interface TaskMap {
   better: [BetterInput, BetterResult];
   define: [DefineInput, DefineResult];
   retell: [RetellInput, RetellResult];
+  opinion: [OpinionInput, OpinionResult];
 }
 export type TaskName = keyof TaskMap;

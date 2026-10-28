@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import { hasFirebase } from './config.ts';
 import { signInWithGoogle, signOutUser, watchUser } from './lib/firebase.ts';
 import { CloudRepo, LocalRepo } from './lib/repo.ts';
-import { href, useRoute } from './lib/router.ts';
+import { go, href, useRoute } from './lib/router.ts';
 import { AppProvider, useApp, type Account } from './lib/store.tsx';
 import { Icon } from './ui/components/Icon.tsx';
 import { Today } from './ui/pages/Today.tsx';
@@ -36,6 +36,13 @@ import { Retell } from './ui/pages/Retell.tsx';
 import { Checkup } from './ui/pages/Checkup.tsx';
 import { Car } from './ui/pages/Car.tsx';
 import { IdiomPage } from './ui/pages/IdiomPage.tsx';
+import { Welcome } from './ui/pages/Welcome.tsx';
+import { MicCheckPage } from './ui/components/MicCheck.tsx';
+import { Report } from './ui/pages/Report.tsx';
+import { Numbers } from './ui/pages/Numbers.tsx';
+import { Opinion } from './ui/pages/Opinion.tsx';
+import { Story } from './ui/pages/Story.tsx';
+import { Twisters } from './ui/pages/Twisters.tsx';
 
 export function App() {
   if (!hasFirebase) return <LocalApp />;
@@ -114,16 +121,32 @@ function SignIn() {
 const TABS: { to: string; label: string; icon: string; match: string[] }[] = [
   { to: '/today', label: 'Today', icon: 'home', match: ['today', ''] },
   { to: '/path', label: 'Path', icon: 'path', match: ['path', 'unit', 'grammar', 'placement'] },
-  { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab', 'retell', 'checkup', 'car', 'idiom'] },
+  { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab', 'retell', 'checkup', 'car', 'idiom', 'numbers', 'opinion', 'story', 'twisters'] },
   { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor', 'debate', 'phone', 'smalltalk', 'interview-prep'] },
   { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl'] },
-  { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements'] },
+  { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements', 'report'] },
 ];
+
+const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
+const THEME_ICON = { system: 'monitor', light: 'sun', dark: 'moon' } as const;
 
 function Shell() {
   const route = useRoute();
-  const { account, status, repo } = useApp();
+  const { account, status, repo, user, update } = useApp();
   const top = route.path[0] ?? '';
+  const theme = user.settings.theme;
+
+  // Light/dark: follow the system unless the learner picked one.
+  useEffect(() => {
+    if (theme === 'system') delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  // First run: show the setup before the home page.
+  useEffect(() => {
+    if (!user.onboarded && (top === '' || top === 'today')) go('/welcome');
+  }, [user.onboarded, top]);
+
   const testMode = repo.kind === 'local' || !status.speech || !status.tutor;
   let page: ReactNode;
   const [a, b, c] = route.path;
@@ -186,6 +209,27 @@ function Shell() {
     case 'idiom':
       page = <IdiomPage />;
       break;
+    case 'welcome':
+      page = <Welcome />;
+      break;
+    case 'mic-check':
+      page = <MicCheckPage />;
+      break;
+    case 'report':
+      page = <Report />;
+      break;
+    case 'numbers':
+      page = <Numbers />;
+      break;
+    case 'opinion':
+      page = <Opinion />;
+      break;
+    case 'story':
+      page = <Story />;
+      break;
+    case 'twisters':
+      page = <Twisters />;
+      break;
     case 'roleplays':
       page = <Roleplays />;
       break;
@@ -237,6 +281,14 @@ function Shell() {
               </a>
             )}
             <UpdateBadge />
+            <button
+              className="btn ghost small"
+              aria-label={`Theme: ${theme}. Switch to ${THEME_NEXT[theme]}`}
+              title={`Theme: ${theme}`}
+              onClick={() => update((u) => (u.settings.theme = THEME_NEXT[theme]))}
+            >
+              <Icon name={THEME_ICON[theme]} />
+            </button>
             <a className="btn ghost small" href={href('/settings')} aria-label="Settings">
               <Icon name="gear" />
             </a>

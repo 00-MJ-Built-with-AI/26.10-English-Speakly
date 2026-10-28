@@ -864,3 +864,32 @@ hr {
   font-weight: 800;
   margin: 0 -1px;
 }
+
+/* print: the progress report as a clean light page */
+@media print {
+  :root,
+  :root[data-theme='dark'] {
+    --bg: #ffffff;
+    --bg-2: #f6f8fb;
+    --card: #ffffff;
+    --line: #dde3ec;
+    --text: #111827;
+    --muted: #4b5563;
+    --faint: #6b7280;
+    --shadow: none;
+    color-scheme: light;
+  }
+  .topbar,
+  .tabbar,
+  .toasts,
+  .no-print {
+    display: none !important;
+  }
+  .main {
+    padding: 0;
+    max-width: none;
+  }
+  .card {
+    break-inside: avoid;
+  }
+}

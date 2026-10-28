@@ -10,6 +10,8 @@ import { overallSpeaking, toeflBandOf } from '../../engine/scoring.ts';
 import { examPlan } from '../../engine/exam.ts';
 import { levelFromXp } from '../../engine/gamification.ts';
 import { LEARNED_BOX, startOfDay } from '../../engine/srs.ts';
+import { computeFocus, mondayKey } from '../../engine/focus.ts';
+import { SpendingBanner } from '../components/Spending.tsx';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import { SKILLS, type Attempt, type Checkup, type Mistake, type UnitPart, type VocabItem } from '../../lib/types.ts';
@@ -31,7 +33,7 @@ function greeting(): string {
 }
 
 export function Today() {
-  const { user, repo, status, account } = useApp();
+  const { user, repo, status, account, update } = useApp();
   const [due, setDue] = useState(0);
   const [today, setToday] = useState<Attempt[]>([]);
   const [vocabDue, setVocabDue] = useState(0);
@@ -43,11 +45,23 @@ export function Today() {
     repo.list<VocabItem>('vocab', { dueBefore: Date.now() }).then((v) => setVocabDue(v.filter((x) => x.box < LEARNED_BOX).length));
   }, [repo]);
 
+  // A new focus each Monday, from the last two weeks of practice.
+  const week = mondayKey();
+  useEffect(() => {
+    if (user.weeklyFocus?.week === week) return;
+    Promise.all([repo.list<Attempt>('attempts', { since: Date.now() - 14 * 86_400_000 }), repo.list<Mistake>('mistakes', { limit: 500 })]).then(([attempts, mistakes]) =>
+      update((u) => (u.weeklyFocus = { week, items: computeFocus(u, attempts, mistakes) })),
+    );
+  }, [repo, week, user.weeklyFocus?.week, update]);
+
   const unit = currentUnit(user);
   const st = unit ? unitState(user, unit.id) : null;
   const didToday = (kinds: Attempt['kind'][], unitId?: string) => today.some((a) => kinds.includes(a.kind) && (!unitId || a.unitId === unitId));
 
   const plan: PlanItem[] = [];
+  for (const f of user.weeklyFocus?.week === week ? user.weeklyFocus.items : []) {
+    plan.push({ to: f.to, icon: 'target', title: `Weekly focus: ${f.label}`, desc: f.why, minutes: 5, done: false });
+  }
   if (due > 0) plan.push({ to: '/review', icon: 'repeat', title: `Review ${Math.min(due, 15)} mistakes`, desc: 'Say your past mistakes correctly', minutes: 5, done: didToday(['review']) });
   if (vocabDue > 0) plan.push({ to: '/vocab', icon: 'book', title: `Use ${Math.min(vocabDue, 15)} of your phrases`, desc: 'Say each phrase in a sentence', minutes: 3, done: didToday(['vocab']) });
   const anyDone = UNITS.some((u) => unitState(user, u.id).status === 'done');
@@ -128,6 +142,8 @@ export function Today() {
           Test mode: {[repo.kind === 'local' && 'progress is saved on this device only', !status.speech && 'pronunciation scores are estimates', !status.tutor && 'the tutor is a simple stand-in'].filter(Boolean).join('; ')}. See Settings to connect everything.
         </a>
       )}
+
+      <SpendingBanner />
 
       <div className="card">
         <div className="spread">
