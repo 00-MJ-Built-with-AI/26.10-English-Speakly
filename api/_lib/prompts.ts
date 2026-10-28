@@ -1,4 +1,4 @@
-import type { ChatInput, GenerateInput, Level } from '../../shared/tasks.ts';
+import type { ChatInput, GenerateInput, Level } from '../../shared/tasks.js';
 
 const LEVEL_TALK: Record<Level, string> = {
   A1: 'Use very short sentences, the most common 500 words, present simple. Speak slowly and clearly.',

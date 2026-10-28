@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import Anthropic from '@anthropic-ai/sdk';
-import { USAGE_MARK, type TokenUsage } from '../shared/pricing.ts';
+import { USAGE_MARK, type TokenUsage } from '../shared/pricing.js';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import type { z } from 'zod';
 import {
@@ -34,9 +34,9 @@ import {
   type BetterInput,
   type DefineInput,
   type JournalInput,
-} from '../shared/tasks.ts';
-import { errorResponse, HttpError, requireUser } from './_lib/auth.ts';
-import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.ts';
+} from '../shared/tasks.js';
+import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
+import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.js';
 
 const MODEL = process.env.TUTOR_MODEL || 'claude-opus-5-5';
 /** Anthropic picks a fallback model if a request is declined by a safety classifier. */

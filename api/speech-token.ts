@@ -1,4 +1,4 @@
-import { errorResponse, HttpError, requireUser } from './_lib/auth.ts';
+import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
 
 /**
  * Swaps the Azure Speech key (kept on the server) for a 10-minute token the browser can
