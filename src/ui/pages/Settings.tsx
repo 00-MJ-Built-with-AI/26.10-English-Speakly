@@ -261,6 +261,14 @@ export function SettingsPage() {
           {ok(status.tutor)}
         </div>
         {(!status.speech || !status.tutor || repo.kind === 'local') && <p className="small muted">The setup guide (SETUP.md in the project) walks through each one.</p>}
+        <div className="row" style={{ marginBottom: 8 }}>
+          <a className="btn small primary" href={href('/go-live')}>
+            Run the go-live check
+          </a>
+          <a className="btn small" href={href('/backup')}>
+            Backup and restore
+          </a>
+        </div>
         {signOut && (
           <button className="btn small" onClick={signOut}>
             Sign out

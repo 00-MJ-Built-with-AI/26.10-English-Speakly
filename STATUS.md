@@ -121,6 +121,19 @@
 - Test-style timed tests: app menus hidden, slim header with hide-time toggle and Exit, leave warning.
 - TOEFL section in the progress report (bands, likely ranges, official result, readiness, weak types). 53 tests.
 
+## Go-live and planning (2026-11-03)
+- Go-live check (`/go-live`, from Settings and the test-mode banner): server functions, one real AI call,
+  Azure token and test voice, Google sign-in and cloud read, microphone, spending limit; each with the fix.
+- One combined daily plan on Today when TOEFL is active: core speaking items plus TOEFL items to about
+  60 minutes (tick-off shared with the TOEFL page) and KAUST reminders.
+- KAUST application tracker (`/kaust/tracker`): deadlines you enter, documents checklist (TOEFL code 4107),
+  recommenders with status and an AI recommender brief (`recBrief`); deadlines and letters due within two
+  weeks appear on Today (`src/engine/kaust.ts`).
+- "Will I reach 5.5 in time?": trend per skill from tests and weekly practice projected to the exam date,
+  with the extra daily minutes needed (`project` in `src/engine/toeflExtras.ts`).
+- Backup and restore (`/backup`): one JSON file with the user document, history collections and the local
+  question bank (no recording audio); restore replaces progress and merges history. 55 tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.

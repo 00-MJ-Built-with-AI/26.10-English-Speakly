@@ -71,3 +71,14 @@ export interface QaInput {
   question: string;
   transcript: string;
 }
+
+export const RecBrief = z.object({
+  email: z.string().describe('A short, polite email asking for (or thanking for) the letter, with the brief attached; 90-150 words'),
+  highlights: z.array(z.string()).describe('3-5 things the recommender could speak to, each tied to something concrete they saw'),
+  facts: z.array(z.string()).describe('Dates, courses, projects, results and links the recommender may want to cite, only from what the applicant gave'),
+});
+export type RecBrief = z.infer<typeof RecBrief>;
+export interface RecBriefInput {
+  recommender: { name: string; relation: string; together: string; deadline: string; status: string };
+  profile: ApplicantProfile;
+}

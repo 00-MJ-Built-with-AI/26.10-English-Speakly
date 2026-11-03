@@ -30,6 +30,9 @@ import { Coach, LongRepeat, QuickAnswers, SpeakingDrill, TopicBank } from './ui/
 import { EssayPlanner, ExamDay, ToneTrainer, WeeklyReport, WrongReview } from './ui/toefl/Extras.tsx';
 import { QuestionBank } from './ui/toefl/Bank.tsx';
 import { FacultyEmailPage, KaustHome, PitchPage, SeminarPage, SopPage } from './ui/pages/Kaust.tsx';
+import { TrackerPage } from './ui/pages/KaustTracker.tsx';
+import { GoLive } from './ui/pages/GoLive.tsx';
+import { Backup } from './ui/pages/Backup.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
 import { SettingsPage } from './ui/pages/Settings.tsx';
@@ -135,7 +138,7 @@ const TABS: { to: string; label: string; icon: string; match: string[] }[] = [
   { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab', 'retell', 'checkup', 'car', 'idiom', 'numbers', 'opinion', 'story', 'twisters'] },
   { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor', 'debate', 'phone', 'smalltalk', 'interview-prep'] },
   { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl', 'kaust'] },
-  { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements', 'report'] },
+  { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements', 'report', 'backup'] },
 ];
 
 const THEME_NEXT = { system: 'light', light: 'dark', dark: 'system' } as const;
@@ -299,9 +302,15 @@ function Shell() {
       page = (
         <>
           <ToeflTabs active="kaust" />
-          {b === 'sop' ? <SopPage /> : b === 'email' ? <FacultyEmailPage key={route.query.get('p') ?? ''} professorId={route.query.get('p') ?? undefined} /> : b === 'pitch' ? <PitchPage /> : b === 'seminar' ? <SeminarPage /> : <KaustHome />}
+          {b === 'sop' ? <SopPage /> : b === 'email' ? <FacultyEmailPage key={route.query.get('p') ?? ''} professorId={route.query.get('p') ?? undefined} /> : b === 'pitch' ? <PitchPage /> : b === 'seminar' ? <SeminarPage /> : b === 'tracker' ? <TrackerPage /> : <KaustHome />}
         </>
       );
+      break;
+    case 'go-live':
+      page = <GoLive />;
+      break;
+    case 'backup':
+      page = <Backup />;
       break;
     case 'progress':
       page = <ProgressPage />;

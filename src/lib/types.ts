@@ -95,6 +95,8 @@ export interface UserDoc {
   memory: { facts: string[]; topics: string[] };
   /** Saved job ad and CV for interview practice. */
   interviewPrep?: { ad: string; cv: string };
+  /** Last time the go-live check ran. */
+  goLiveAt?: number;
   /** KAUST application coach: profile, professors of interest, statement drafts. */
   kaust?: KaustData;
   micCheck?: MicCheckResult;
@@ -216,6 +218,7 @@ export function migrateUser(u: UserDoc): UserDoc {
     onboarded: u.onboarded ?? false,
     twisters: u.twisters ?? {},
     toefl: migrateToefl(u.toefl),
+    kaust: u.kaust ? { ...emptyKaust(), ...u.kaust } : undefined,
     // The first default voice was the standard Ava; move to the more natural HD Ava.
     settings: { ...DEFAULT_SETTINGS, ...u.settings, rates: { ...DEFAULT_SETTINGS.rates, ...u.settings?.rates }, voice: u.settings?.voice === 'en-US-AvaMultilingualNeural' ? DEFAULT_VOICE : (u.settings?.voice ?? DEFAULT_VOICE) },
   };
@@ -389,6 +392,23 @@ export interface KaustData {
   sops: { at: number; text: string; score: number | null }[];
   /** Last research pitch transcript, for audience Q&A. */
   pitch?: string;
+  /** Application tracker: deadlines the learner enters (YYYY-MM-DD). */
+  deadlines: { id: string; label: string; date: string; done: boolean }[];
+  /** Document checklist ticks, by id; custom documents are added to `customDocs`. */
+  docs: Record<string, boolean>;
+  customDocs: { id: string; label: string }[];
+  recommenders: Recommender[];
 }
 
-export const emptyKaust = (): KaustData => ({ program: '', interests: '', cv: '', professors: [], sops: [] });
+export interface Recommender {
+  id: string;
+  name: string;
+  /** e.g. "thesis supervisor", "course instructor (Signals and Systems)". */
+  relation: string;
+  /** What you did with them: projects, courses, results they can speak to. */
+  together: string;
+  deadline: string;
+  status: 'not-asked' | 'asked' | 'agreed' | 'submitted';
+}
+
+export const emptyKaust = (): KaustData => ({ program: '', interests: '', cv: '', professors: [], sops: [], deadlines: [], docs: {}, customDocs: [], recommenders: [] });

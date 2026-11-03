@@ -12,6 +12,9 @@ import { levelFromXp } from '../../engine/gamification.ts';
 import { LEARNED_BOX, startOfDay } from '../../engine/srs.ts';
 import { computeFocus, mondayKey } from '../../engine/focus.ts';
 import { weakestSkill } from '../../engine/toeflSkill.ts';
+import { kaustReminders } from '../../engine/kaust.ts';
+import { todayKey } from '../../engine/toeflExtras.ts';
+import { todaysPlan } from '../toefl/Extras.tsx';
 import { SpendingBanner } from '../components/Spending.tsx';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
@@ -26,7 +29,12 @@ interface PlanItem {
   desc: string;
   minutes: number;
   done: boolean;
+  /** TOEFL items are ticked off by hand (shared with the TOEFL page). */
+  toggle?: () => void;
 }
+
+/** With TOEFL practice on, the day aims at about this many minutes in total. */
+const COMBINED_MINUTES = 60;
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -110,8 +118,39 @@ export function Today() {
   plan.push({ to: '/journal', icon: 'book', title: 'Speaking journal', desc: promptOfTheDay(), minutes: 3, done: didToday(['journal']) });
   plan.push({ to: '/practice/fast', icon: 'bolt', title: 'Speak fast warm-up', desc: 'Start talking within 3 seconds', minutes: 3, done: didToday(['fast']) });
 
+  // One plan for the day: the core speaking items, TOEFL practice to fill about an hour, and KAUST deadlines.
+  const toeflActive = Boolean(user.toefl.scores.length || user.toefl.log.length || user.settings.examDate);
+  const reminders = kaustReminders(user.kaust);
+  let shown = plan;
+  if (toeflActive) {
+    const core = plan.filter((p) => !p.to.startsWith('/toefl') && !p.to.startsWith('/tutor') && p.to !== '/journal' && p.to !== '/practice/fast');
+    const budget = Math.max(30, COMBINED_MINUTES - core.reduce((a, p) => a + p.minutes, 0));
+    const day = todayKey();
+    const checked = user.toefl.planChecks.date === day ? user.toefl.planChecks.done : [];
+    const toggle = (to: string) =>
+      update((u) => {
+        const cur = u.toefl.planChecks.date === day ? u.toefl.planChecks.done : [];
+        u.toefl.planChecks = { date: day, done: cur.includes(to) ? cur.filter((x) => x !== to) : [...cur, to] };
+      });
+    const reviewDue = user.toefl.review.filter((r) => r.due <= Date.now()).length;
+    const toeflItems = [
+      ...(reviewDue ? [{ label: `TOEFL: wrong-answer review (${reviewDue} due)`, to: '/toefl/review', minutes: Math.min(10, 1 + Math.ceil(reviewDue / 2)) }] : []),
+      ...todaysPlan(user).plan[0].items,
+    ];
+    const picked: PlanItem[] = [];
+    let used = 0;
+    for (const t of toeflItems) {
+      if (picked.length && used + t.minutes > budget + 3) continue;
+      used += t.minutes;
+      picked.push({ to: t.to, icon: 'trophy', title: t.label.startsWith('TOEFL') ? t.label : `TOEFL ${t.label}`, desc: 'Tick it off when done', minutes: t.minutes, done: checked.includes(t.to), toggle: () => toggle(t.to) });
+    }
+    shown = [...core, ...picked];
+  }
+  shown = [...reminders.map((r) => ({ to: '/kaust/tracker', icon: 'target', title: `KAUST: ${r.title}`, desc: r.desc, minutes: 2, done: false })), ...shown];
+  const planned = shown.reduce((a, p) => a + p.minutes, 0);
+
   const mins = minutesToday(user);
-  const goal = user.settings.dailyGoalMinutes;
+  const goal = toeflActive ? Math.max(user.settings.dailyGoalMinutes, planned) : user.settings.dailyGoalMinutes;
   const s = streak(user);
   const overall = overallSpeaking(user);
   const done = UNITS.filter((u) => unitState(user, u.id).status === 'done').length;
@@ -143,8 +182,8 @@ export function Today() {
       </div>
 
       {(!status.speech || !status.tutor || repo.kind === 'local') && (
-        <a className="banner" href={href('/settings')}>
-          Test mode: {[repo.kind === 'local' && 'progress is saved on this device only', !status.speech && 'pronunciation scores are estimates', !status.tutor && 'the tutor is a simple stand-in'].filter(Boolean).join('; ')}. See Settings to connect everything.
+        <a className="banner" href={href('/go-live')}>
+          Test mode: {[repo.kind === 'local' && 'progress is saved on this device only', !status.speech && 'pronunciation scores are estimates', !status.tutor && 'the tutor is a simple stand-in'].filter(Boolean).join('; ')}. Run the go-live check to see what to connect.
         </a>
       )}
 
@@ -154,13 +193,14 @@ export function Today() {
         <div className="spread">
           <h2 style={{ margin: 0 }}>Today's plan</h2>
           <span className="small muted">
-            {mins} / {goal} min
+            {mins} / {goal} min{toeflActive ? ` · ${shown.filter((p) => p.done).length}/${shown.length} done` : ''}
           </span>
         </div>
         <div className="bar" style={{ margin: '10px 0 14px' }}>
           <span style={{ width: `${Math.min(100, (mins / goal) * 100)}%`, background: mins >= goal ? 'var(--good)' : undefined }} />
         </div>
-        {plan.map((p) => (
+        {toeflActive && <div className="small muted" style={{ marginTop: -6, marginBottom: 6 }}>Speaking, TOEFL and KAUST in one list, about {planned} minutes.</div>}
+        {shown.map((p) => (
           <a key={p.to + p.title} className="list-item" href={href(p.to)}>
             <span className="icon-tile" style={p.done ? { background: 'var(--good-soft)', color: 'var(--good)' } : undefined}>
               <Icon name={p.done ? 'check' : p.icon} />
@@ -170,6 +210,18 @@ export function Today() {
               <div className="small muted">{p.desc}</div>
             </span>
             <span className="small faint">{p.minutes} min</span>
+            {p.toggle && (
+              <button
+                className={`btn small ${p.done ? 'primary' : 'ghost'}`}
+                aria-label={p.done ? 'Mark as not done' : 'Mark as done'}
+                onClick={(e) => {
+                  e.preventDefault();
+                  p.toggle!();
+                }}
+              >
+                <Icon name="check" size={14} />
+              </button>
+            )}
           </a>
         ))}
       </div>

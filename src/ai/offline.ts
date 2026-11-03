@@ -322,6 +322,14 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         questions: ['What is the main limitation of your approach?', 'How would you test this outside the lab?', 'How is your work different from existing methods?'],
       } as TaskMap[K][1];
     }
+    case 'recBrief': {
+      const r = (i.recommender ?? {}) as { name?: string; together?: string; deadline?: string };
+      return {
+        email: `Dear ${r.name || '[name]'},\n\nI am applying to [program] at KAUST and would be very grateful if you could write a letter of recommendation for me. I have attached a short brief with the projects we worked on${r.deadline ? `; the deadline is ${r.deadline}` : ''}.\n\nThank you very much for your time.\n\nBest regards,\n[Your name]`,
+        highlights: r.together ? [`(Test mode) What you did together: ${r.together}`] : ['(Test mode) Add what you did together for real highlights.'],
+        facts: ['(Test mode) Facts to cite appear with the AI key.'],
+      } as TaskMap[K][1];
+    }
     case 'qa':
       return { score: Math.min(5, 1 + Math.floor(countWords(String(i.transcript ?? '')) / 25)), feedback: '(Test mode) Real feedback appears with the AI key.', better: '(Test mode) A model answer appears with the AI key. Shape: direct answer, one reason or example, honest limit.' } as TaskMap[K][1];
     case 'speakCompare': {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeGap, buildPlan, weakTypes } from '../src/engine/toeflPlan.ts';
 import { calibrate, practiceBand, skillBand, weakestSkill } from '../src/engine/toeflSkill.ts';
-import { planToIcs, readiness, reviewNext, weekKey } from '../src/engine/toeflExtras.ts';
+import { planToIcs, project, readiness, reviewNext, weekKey } from '../src/engine/toeflExtras.ts';
+import { kaustReminders } from '../src/engine/kaust.ts';
+import { emptyKaust } from '../src/lib/types.ts';
 import { bandFromSection30, bandFromTotal, comparableTotal, overallBand, section30FromBand, totalRange, type ToeflScore } from '../src/engine/toeflScale.ts';
 
 const score = (bands: ToeflScore['bands'], scores30?: ToeflScore['scores30'], total?: number): ToeflScore => ({
@@ -142,5 +144,26 @@ describe('calibration', () => {
     const after = { scores: [official, mock], log: [], sectionTests: [{ at: Date.parse('2026-11-01'), section: 'reading' as const, band: 4.5 }], calibration: c.calibration };
     expect(skillBand(after, 'reading')?.band).toBe(5);
     expect(skillBand(after, 'writing')?.band).toBe(3.5);
+  });
+});
+
+describe('projection and KAUST reminders', () => {
+  const W = 7 * 86_400_000;
+  const now = Date.parse('2026-11-03');
+  it('projects the trend to the exam date', () => {
+    const pts = [{ at: now - 4 * W, band: 4 }, { at: now - 2 * W, band: 4.5 }, { at: now, band: 5 }];
+    const p = project(pts, 5, 5.5, now + 2 * W, now);
+    expect(p.perWeek).toBeCloseTo(0.25);
+    expect(p.projected).toBe(5.5);
+    expect(p.status).toBe('on-track');
+    expect(project(pts, 5, 5.5, now + 0.5 * W, now).status).toBe('behind');
+    expect(project([{ at: now, band: 4 }], 4, 5.5, now + W, now).status).toBe('unknown');
+    expect(project([], 6, 5.5, now + W, now).status).toBe('reached');
+  });
+  it('lists deadlines and letters due soon', () => {
+    const k = { ...emptyKaust(), deadlines: [{ id: 'a', label: 'Application deadline', date: '2026-11-10', done: false }, { id: 'b', label: 'Far away', date: '2027-03-01', done: false }], recommenders: [{ id: 'r', name: 'Dr. Ali', relation: 'supervisor', together: '', deadline: '2026-11-05', status: 'asked' as const }] };
+    const r = kaustReminders(k, now);
+    expect(r.map((x) => x.title)).toEqual(['Letter from Dr. Ali', 'Application deadline']);
+    expect(r[1].desc).toMatch(/in 7 days/);
   });
 });

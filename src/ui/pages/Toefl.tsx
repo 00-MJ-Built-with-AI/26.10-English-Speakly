@@ -12,7 +12,7 @@ import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ExamCard } from '../components/ExamCard.tsx';
 import { analyzeBands, gapSummary, weakTypes } from '../../engine/toeflPlan.ts';
-import { MONDAY, ReadinessCard, TodayPlan } from '../toefl/Extras.tsx';
+import { MONDAY, ReadinessCard, TimelineCard, TodayPlan } from '../toefl/Extras.tsx';
 import { skillBand } from '../../engine/toeflSkill.ts';
 import { SECTION_LABELS, SECTIONS, type Section } from '../../engine/toeflScale.ts';
 import { addSoundSamples, soundSamples } from '../../engine/toeflExtras.ts';
@@ -76,8 +76,10 @@ export function ToeflHub() {
           It's Monday: your <a href={href('/toefl/weekly')}>weekly TOEFL report</a> is ready.
         </div>
       )}
+      <div className="small muted">Today's TOEFL items are also part of your one combined plan on <a href={href('/today')}>Today</a>.</div>
       <TodayPlan />
       <ReadinessCard />
+      <TimelineCard />
       <ExamCard history={history} />
       <div className="grid grid-2">
         <button className="btn primary big" onClick={() => go('/toefl/full-mock')}>

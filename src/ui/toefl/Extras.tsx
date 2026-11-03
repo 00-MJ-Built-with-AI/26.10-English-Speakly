@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GenOut, PlanCheck } from '../../../shared/toefl.ts';
 import { daysUntil } from '../../engine/exam.ts';
-import { readiness, reviewNext, todayKey, weekKey, DAY_MS, planToIcs, type Verdict } from '../../engine/toeflExtras.ts';
+import { practiceSeries, project, readiness, reviewNext, todayKey, weekKey, DAY_MS, planToIcs, type Verdict } from '../../engine/toeflExtras.ts';
 import { analyzeBands, buildPlan, planOffset, type PlanDay } from '../../engine/toeflPlan.ts';
 import { bandHistory, skillBand } from '../../engine/toeflSkill.ts';
 import { SECTION_LABELS, SECTIONS, type Section } from '../../engine/toeflScale.ts';
@@ -597,3 +597,69 @@ export const ToneTrainer = () => (
 );
 
 export const MONDAY = () => new Date().getDay() === 1;
+
+// ---- Will I reach the target in time? ----
+
+const PROJ_LABEL = { reached: 'At target', 'on-track': 'On track', behind: 'Behind', unknown: 'Not enough data' } as const;
+
+/** Per skill: the trend of recent results projected to the exam date, and what it would take to get there. */
+export function TimelineCard() {
+  const { user, repo } = useApp();
+  const t = user.toefl;
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
+  useEffect(() => {
+    repo.list<Attempt>('attempts', { since: Date.now() - 14 * DAY_MS }).then((a) => setAttempts(a.filter((x) => x.kind === 'toefl')));
+  }, [repo]);
+  if (!user.settings.examDate) {
+    return (
+      <div className="card small muted">
+        <b>Will I reach {t.target.toFixed(1)} in time?</b> Set your exam date (My exam, below) to see a projection for each skill.
+      </div>
+    );
+  }
+  const examAt = Date.parse(`${user.settings.examDate}T09:00:00`);
+  const weeks = Math.max(0, (examAt - Date.now()) / (7 * DAY_MS));
+  const perDay = (s: Section) => attempts.filter((a) => attemptSkill(a) === s).reduce((m, a) => m + a.seconds / 60, 0) / 14;
+  const rows = SECTIONS.map((s) => {
+    const shift = t.calibration[s] ?? 0;
+    const pts = [...bandHistory(t, s).map((p) => ({ at: p.at, band: p.source === 'official' ? p.band : p.band + shift })), ...practiceSeries(t.log, s).map((p) => ({ at: p.at, band: p.band + shift }))].sort((a, b) => a.at - b.at);
+    const p = project(pts, skillBand(t, s, user.toeflBand)?.band ?? null, t.target, examAt);
+    let advice = '';
+    if (p.status === 'behind' || p.status === 'unknown') {
+      const now = Math.round(perDay(s));
+      if (p.perWeek != null && p.perWeek > 0.01 && p.needPerWeek != null) {
+        const extra = Math.min(30, Math.max(5, Math.round((Math.max(now, 5) * (p.needPerWeek / p.perWeek - 1)) / 5) * 5));
+        advice = `Gaining ${p.perWeek.toFixed(2)} a week, need ${p.needPerWeek.toFixed(2)}: about ${extra} more min a day (now ~${now}).`;
+      } else if (p.status === 'unknown' && p.current != null) {
+        advice = `Results from at least two different weeks are needed for a trend: take a ${SECTION_LABELS[s]} section test each week.`;
+      } else if (p.current != null) {
+        advice = `No measurable gain yet: add 10-15 min a day here and take a ${SECTION_LABELS[s]} section test each week.`;
+      } else {
+        advice = 'Take a section test to start the trend.';
+      }
+    }
+    return { s, p, advice };
+  });
+  return (
+    <div className="card stack">
+      <div className="spread">
+        <h3 style={{ margin: 0 }}>Will I reach {t.target.toFixed(1)} in time?</h3>
+        <span className="small muted">{weeks < 1 ? 'Exam this week' : `${Math.round(weeks)} week${Math.round(weeks) === 1 ? '' : 's'} left`}</span>
+      </div>
+      {rows.map(({ s, p, advice }) => (
+        <div key={s} className="small">
+          <div className="spread">
+            <b>{SECTION_LABELS[s]}</b>
+            <span>
+              {p.current != null ? p.current.toFixed(1) : '–'}
+              {p.projected != null && p.status !== 'reached' && ` → ${p.projected.toFixed(1)} by the exam`}{' '}
+              <span className={`chip ${p.status === 'reached' || p.status === 'on-track' ? 'good' : p.status === 'behind' ? 'bad' : ''}`}>{PROJ_LABEL[p.status]}</span>
+            </span>
+          </div>
+          {advice && <div className="muted">{advice}</div>}
+        </div>
+      ))}
+      <div className="small faint">A straight-line trend from your recent tests and weekly practice; real progress is uneven, so read it as a direction, not a promise.</div>
+    </div>
+  );
+}

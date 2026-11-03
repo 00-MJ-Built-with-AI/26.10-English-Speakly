@@ -43,6 +43,7 @@ export function KaustHome() {
   const [prof, setProf] = useState({ name: '', area: '', notes: '' });
   const ready = Boolean(k.program && (k.interests || k.cv));
   const tools = [
+    { to: '/kaust/tracker', icon: 'check' as const, title: 'Application tracker', desc: `${k.deadlines.filter((d) => !d.done).length} open deadlines · ${k.recommenders.length} recommenders` },
     { to: '/kaust/sop', icon: 'book' as const, title: 'Statement of purpose review', desc: k.sops.length ? `${k.sops.length} version${k.sops.length === 1 ? '' : 's'}, last score ${k.sops[k.sops.length - 1].score ?? '–'}/5` : 'Feedback like an admissions committee' },
     { to: '/kaust/email', icon: 'chat' as const, title: 'Email a professor', desc: 'Write or improve an email about supervision' },
     { to: '/tutor?kind=research', icon: 'mic' as const, title: 'Faculty interview', desc: 'A professor asks about your research, live by voice' },

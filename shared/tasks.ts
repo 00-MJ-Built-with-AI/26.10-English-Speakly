@@ -3,7 +3,7 @@
  * Shared by the browser (types, offline stand-ins) and the server (prompts, structured output).
  */
 import { z } from 'zod';
-import type { ApplicantProfile, FacultyEmail, FacultyEmailInput, PitchFeedback, PitchInput, QaFeedback, QaInput, SopReview, SopReviewInput } from './kaust.js';
+import type { ApplicantProfile, FacultyEmail, FacultyEmailInput, PitchFeedback, PitchInput, QaFeedback, QaInput, RecBrief, RecBriefInput, SopReview, SopReviewInput } from './kaust.js';
 import type { Arabic, ArabicInput, Explain, ExplainInput, GenKind, GenOut, NotesFeedback, NotesFeedbackInput, PlanCheck, PlanCheckInput, ScoreReport, ScoreReportInput, SpeakCompare, SpeakCompareInput, ToeflGenInput, WritingInput, WritingScore } from './toefl.js';
 
 export const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
@@ -316,6 +316,7 @@ export interface TaskMap {
   facultyEmail: [FacultyEmailInput, FacultyEmail];
   pitch: [PitchInput, PitchFeedback];
   qa: [QaInput, QaFeedback];
+  recBrief: [RecBriefInput, RecBrief];
   check: [CheckInput, CheckResult];
   report: [ReportInput, ReportResult];
   grade: [GradeInput, GradeResult];

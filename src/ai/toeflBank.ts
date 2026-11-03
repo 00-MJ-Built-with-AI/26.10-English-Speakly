@@ -58,6 +58,14 @@ async function put(item: BankItem): Promise<void> {
   }
 }
 
+/** Adds items from a backup (same id replaces). */
+export async function putItems(items: BankItem[]): Promise<void> {
+  if (!items.length) return;
+  await tx('readwrite', (s) => {
+    for (const i of items) s.put(i);
+  });
+}
+
 export async function clearBank(): Promise<void> {
   await tx('readwrite', (s) => {
     s.clear();

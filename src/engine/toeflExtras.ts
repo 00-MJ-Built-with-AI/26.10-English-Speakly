@@ -2,7 +2,7 @@
 import { soundForPhoneme } from '../content/sounds.ts';
 import type { Assessment } from '../speech/types.ts';
 import type { PlanDay } from './toeflPlan.ts';
-import { bandHistory, skillBand, type SkillData } from './toeflSkill.ts';
+import { bandHistory, practiceBand, skillBand, type SkillData } from './toeflSkill.ts';
 import { SECTIONS, type Section } from './toeflScale.ts';
 
 const DAY = 86_400_000;
@@ -135,3 +135,44 @@ export function weakSounds(store: Record<string, { sum: number; n: number }>): {
 }
 
 export const DAY_MS = DAY;
+
+export interface Projection {
+  current: number | null;
+  /** Bands gained per week (least squares over recent results). */
+  perWeek: number | null;
+  projected: number | null;
+  /** Bands per week needed to reach the target by the exam. */
+  needPerWeek: number | null;
+  status: 'reached' | 'on-track' | 'behind' | 'unknown';
+}
+
+/**
+ * Where a skill is heading by the exam date: a straight-line trend over its recent results
+ * (at least two, at least five days apart), capped at band 6.
+ */
+export function project(points: { at: number; band: number }[], current: number | null, target: number, examAt: number, now = Date.now()): Projection {
+  const weeksLeft = Math.max(0, (examAt - now) / (7 * DAY));
+  const needPerWeek = current != null && weeksLeft > 0 ? Math.max(0, (target - current) / weeksLeft) : null;
+  if (current != null && current >= target) return { current, perWeek: null, projected: current, needPerWeek: 0, status: 'reached' };
+  const recent = points.filter((p) => now - p.at < 90 * DAY);
+  if (current == null || recent.length < 2 || recent[recent.length - 1].at - recent[0].at < 5 * DAY) return { current, perWeek: null, projected: null, needPerWeek, status: 'unknown' };
+  const xs = recent.map((p) => p.at / (7 * DAY));
+  const ys = recent.map((p) => p.band);
+  const mx = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const my = ys.reduce((a, b) => a + b, 0) / ys.length;
+  const den = xs.reduce((a, x) => a + (x - mx) ** 2, 0);
+  const perWeek = den ? xs.reduce((a, x, k) => a + (x - mx) * (ys[k] - my), 0) / den : 0;
+  const projected = Math.min(6, Math.round((current + Math.max(0, perWeek) * weeksLeft) * 2) / 2);
+  return { current, perWeek, projected, needPerWeek, status: projected >= target ? 'on-track' : 'behind' };
+}
+
+/** Weekly practice estimates for a skill over the last `weeks` weeks (each from practice up to that week's end). */
+export function practiceSeries(log: { at: number; section: Section; points: number; max: number }[], section: Section, weeks = 8, now = Date.now()) {
+  const out: { at: number; band: number }[] = [];
+  for (let w = weeks - 1; w >= 0; w--) {
+    const end = now - w * 7 * DAY;
+    const p = practiceBand(log.filter((x) => x.at <= end && x.at > end - 28 * DAY), section);
+    if (p) out.push({ at: end, band: p.band });
+  }
+  return out;
+}
