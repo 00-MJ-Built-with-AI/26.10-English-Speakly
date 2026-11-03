@@ -96,7 +96,7 @@ export function Today() {
   else if (exam.today === 'repeat') plan.push({ to: '/toefl/repeat', icon: 'trophy', title: 'TOEFL: Listen and Repeat', desc: `7 sentences${examNote}`, minutes: 4, done: didToday(['toefl']) });
   if (user.toefl.scores.length || user.toefl.log.length || user.settings.examDate) {
     const skill = weakestSkill(user);
-    plan.push({ to: skill === 'speaking' ? '/toefl/speaking/long' : `/toefl/${skill}/drill`, icon: 'trophy', title: `TOEFL ${skill} drill`, desc: `Your skill furthest from band ${user.toefl.target.toFixed(1)}; full plan on the TOEFL page`, minutes: 10, done: didToday(['toefl']) });
+    plan.push({ to: `/toefl/${skill}/drill`, icon: 'trophy', title: `TOEFL ${skill} drill`, desc: `Your skill furthest from band ${user.toefl.target.toFixed(1)}; full plan on the TOEFL page`, minutes: 10, done: didToday(['toefl']) });
   }
   // In the last six weeks before the exam, TOEFL practice replaces the daily conversation.
   const examWeeks = exam.phase === 'final' || exam.phase === 'focus';

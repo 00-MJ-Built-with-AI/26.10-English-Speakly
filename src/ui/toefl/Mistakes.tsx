@@ -2,6 +2,7 @@ import { weakTypes } from '../../engine/toeflPlan.ts';
 import { SECTION_LABELS, type Section } from '../../engine/toeflScale.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
+import { TypeTrends } from './Extras.tsx';
 
 /** What each tracked question type is, and where to practise it. */
 const TYPE_INFO: Record<string, { label: string; tip: string; to: string }> = {
@@ -21,6 +22,7 @@ const TYPE_INFO: Record<string, { label: string; tip: string; to: string }> = {
   dictation: { label: 'Dictation', tip: 'Listen for small words and endings; replay at 0.8x first, then 1x.', to: '/toefl/listening/dictation' },
   implied: { label: 'Implied meaning', tip: 'A reason instead of yes/no usually means no; listen to tone.', to: '/toefl/listening/implied' },
   'note-taking': { label: 'Note-taking', tip: 'One line per signposted point, short forms, examples in 2-3 words.', to: '/toefl/listening/notes' },
+  tone: { label: 'Email tone', tip: 'Polite openings, "could you please", no slang or demands; match the reader.', to: '/toefl/writing/tone' },
   phrases: { label: 'Phrase choice', tip: 'Match the phrase to the job: request, explanation, agreement, example.', to: '/toefl/writing/phrases' },
   discussion: { label: 'Academic Discussion', tip: 'State your view in the first sentence, add a reason and an example, and refer to one classmate’s idea.', to: '/toefl/writing/practice?task=discussion' },
 };
@@ -41,6 +43,13 @@ export function Mistakes() {
         ← TOEFL
       </a>
       <h1>Mistake log</h1>
+      <TypeTrends />
+      <a className="list-item" href={href('/toefl/review')} style={{ marginTop: 0 }}>
+        <span className="grow">
+          <b>Wrong-answer review</b>
+          <div className="small muted">{t.review.filter((r) => r.due <= Date.now()).length} due today · {t.review.length} in review</div>
+        </span>
+      </a>
       <p className="muted">Every practice set and mock records which question types you got right. Types under 70% (with at least 4 tries) are marked as weak; practice sets lean toward your weakest type.</p>
       {rows.length === 0 ? (
         <div className="card muted">No answers yet. Do a few Reading, Listening or Writing sets and your log fills in.</div>

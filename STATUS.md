@@ -95,6 +95,18 @@
   own answer via `speakCompare`), interview topic bank with model answers, long-sentence repeat in chunks.
 - Daily plan about 50 minutes, starting today; section test on Wednesdays, full mock on Saturdays. 48 tests.
 
+## TOEFL round 3 (2026-11-03)
+- Learning from mistakes: "Why? Explain this" on every missed question (AI `explain`, with follow-ups),
+  wrong-answer review (`/toefl/review`: back after 1 day, then 3; leaves after two right answers), Arabic
+  explanations switch (`arabic` task, cached), weekly accuracy trends per question type on the mistake log.
+- Readiness predictor (band and likely range per skill; ready / close / not yet / need data), exam-day
+  checklist with countdown (`/toefl/exam-day`), weekly report (`/toefl/weekly`, banner on Mondays), today's
+  plan with check-off and .ics calendar export (`src/engine/toeflExtras.ts`).
+- Writing: 1-minute essay planner (`planCheck`) then write the post; email tone trainer (`tone` items).
+- Speaking: 15-second quick answers (start delay), real speaking daily drill (quick answers + one coached
+  answer), weak sounds from TOEFL answers (Azure phonemes) linked to sound drills.
+- Note-taking feedback now from the AI (`notesFeedback`). 52 tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.
@@ -103,7 +115,7 @@
 - Arabic recognition for "Say it better" and the intonation graph on real recordings (need Azure + mic).
 - Passing a level in the fast-track test (needs real speech; logic is unit-tested).
 - HD voices on the user's Azure resource; phone-line filter on real Azure audio; car mode on a phone.
-- TOEFL items, writing scores and score-report reading with the real Claude API (test mode uses fixed
+- TOEFL items, writing scores, explanations, Arabic, plan checks and score-report reading with the real Claude API (test mode uses fixed
   samples); how close mock estimates are to real results.
 - Spending numbers against real Anthropic/Azure bills (Azure rates are editable estimates); the mic check
   thresholds on a real microphone.

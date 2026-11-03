@@ -157,10 +157,36 @@ export interface ToeflData {
   listenRate: number;
   /** 'varied' picks different voices for each practice set. */
   listenVoices: 'standard' | 'varied';
+  /** Missed questions that come back until answered right twice. */
+  review: ReviewItem[];
+  /** Show short Arabic explanations for missed items. */
+  arabic: boolean;
+  /** Accuracy per question type per week (key: Monday, YYYY-MM-DD). */
+  typeWeeks: Record<string, Record<string, { right: number; total: number }>>;
+  /** Exam-day checklist ticks. */
+  checklist: Record<string, boolean>;
+  /** Today's plan items ticked off (reset each day). */
+  planChecks: { date: string; done: string[] };
+  /** Phoneme accuracy per sound drill from TOEFL speaking answers (running sum and count). */
+  sounds: Record<string, { sum: number; n: number }>;
+  /** Recent start delays (ms) in 15-second quick answers. */
+  quick: number[];
+}
+
+export interface ReviewItem {
+  id: string;
+  at: number;
+  kind: string;
+  /** The passage or transcript, shortened. */
+  context?: string;
+  question: { question: string; options: string[]; answer: number; type: string; explanation: string };
+  /** Correct reviews so far (2 = learned, removed). */
+  box: number;
+  due: number;
 }
 
 export function emptyToefl(): ToeflData {
-  return { target: 5.5, minimum: 5, scores: [], typeStats: {}, sectionStats: {}, typing: [], log: [], sectionTests: [], vocab: {}, writeErrors: [], listenRate: 1, listenVoices: 'standard' };
+  return { target: 5.5, minimum: 5, scores: [], typeStats: {}, sectionStats: {}, typing: [], log: [], sectionTests: [], vocab: {}, writeErrors: [], listenRate: 1, listenVoices: 'standard', review: [], arabic: false, typeWeeks: {}, checklist: {}, planChecks: { date: '', done: [] }, sounds: {}, quick: [] };
 }
 
 /** The goal used to be on the 0-120 scale; it is now a 1-6 band. */

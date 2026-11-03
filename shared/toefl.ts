@@ -116,6 +116,16 @@ export const GEN = {
     models: z.array(z.string()).describe('A band 5.5-6 spoken answer to each question, 80-110 words, natural and structured: answer, reason, example, wrap-up'),
   }),
   longRepeat: z.object({ topic: z.string(), sentences: z.array(z.string()).describe('6 sentences of 12-20 words, campus life') }),
+  tone: z.object({
+    items: z.array(
+      z.object({
+        reader: z.string().describe('Who the email is to, e.g. "a professor", "the housing office"'),
+        casual: z.string().describe('A sentence that is too casual or too direct for that reader'),
+        better: z.string().describe('The same message in the right polite, clear register'),
+        tip: z.string().describe('What changed, in one short sentence'),
+      }),
+    ),
+  }),
 };
 
 export type GenKind = keyof typeof GEN;
@@ -128,6 +138,57 @@ export interface ToeflGenInput {
   /** A question type to include more of (from the mistake log). */
   focusType?: QuestionType;
   topic?: string;
+}
+
+/** "Explain my wrong answer", with follow-up questions. */
+export const Explain = z.object({ answer: z.string().describe('2-5 sentences, plain English'), arabic: z.string().nullable().describe('The same explanation in short Modern Standard Arabic, or null if not asked') });
+export type Explain = z.infer<typeof Explain>;
+export interface ExplainInput {
+  /** The passage, transcript or item the question is about (may be shortened). */
+  context?: string;
+  question: string;
+  options: string[];
+  correct: number;
+  picked: number | null;
+  /** Earlier turns of this explanation chat. */
+  history?: { q: string; a: string }[];
+  followUp?: string;
+  arabic: boolean;
+}
+
+/** Short Arabic versions of English explanations (one per text, same order). */
+export const Arabic = z.object({ arabic: z.array(z.string()) });
+export type Arabic = z.infer<typeof Arabic>;
+export interface ArabicInput {
+  texts: string[];
+}
+
+/** AI feedback on lecture notes. */
+export const NotesFeedback = z.object({
+  covered: z.array(z.boolean()).describe('One per key point: is it in the notes (in any form or abbreviation)?'),
+  missed: z.string().describe('One sentence on what the notes missed and why it mattered for the questions'),
+  tips: z.array(z.string()).describe('2-3 concrete note-taking tips based on these notes'),
+});
+export type NotesFeedback = z.infer<typeof NotesFeedback>;
+export interface NotesFeedbackInput {
+  title: string;
+  keyPoints: string[];
+  notes: string;
+}
+
+/** The 1-minute plan for an Academic Discussion post. */
+export const PlanCheck = z.object({
+  score: z.number().describe('1-5: how well a post written from this plan could score'),
+  good: z.array(z.string()),
+  fix: z.array(z.string()).describe('1-3 changes to the plan'),
+  better: z.object({ view: z.string(), reason: z.string(), example: z.string() }).describe('A stronger plan in the same direction, in note form'),
+});
+export type PlanCheck = z.infer<typeof PlanCheck>;
+export interface PlanCheckInput {
+  prompt: unknown;
+  view: string;
+  reason: string;
+  example: string;
 }
 
 /** "Compare with a band 5.5 answer" and the structure coach, for one interview answer. */

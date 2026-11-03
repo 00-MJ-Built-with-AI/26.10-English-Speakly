@@ -1,4 +1,4 @@
-import type { GenKind, SpeakCompareInput, ToeflGenInput, WritingInput } from '../../shared/toefl.js';
+import type { ArabicInput, ExplainInput, GenKind, NotesFeedbackInput, PlanCheckInput, SpeakCompareInput, ToeflGenInput, WritingInput } from '../../shared/toefl.js';
 
 /** System prompt for writing TOEFL-style practice: original items in the 2026 formats. */
 export const TOEFL_ITEM_SYSTEM = `You write original practice material for the new TOEFL iBT (2026 format) for a learner whose first language is Arabic and who is preparing to study at a graduate university (KAUST). Match the real task formats, lengths and difficulty closely, but never copy or paraphrase real ETS test items. Use American English. Multiple-choice questions have exactly 4 options, one clearly correct answer, and plausible distractors (wrong because of a specific detail, not because they are silly). Vary the position of the correct answer.`;
@@ -44,6 +44,8 @@ const TASK: Record<GenKind, string> = {
     'Implied meaning drill (Listening): 5 short exchanges (2-4 lines) between a woman and a man on campus where the meaning is indirect: a polite refusal, sarcasm, doubt, a hint, a hedge, an idiom. Each with a question about what someone means, implies or feels, 4 options and an explanation that names the clue.',
   interview:
     'Speaking "Take an Interview" set with model answers: a topic, a one-sentence intro, 4 questions getting harder (personal experience, then opinion, then a broader social or academic issue), and for each a band 5.5-6 model spoken answer of 80-110 words with a direct answer, a reason, a concrete example and a short wrap-up, in natural spoken English (contractions, signposting).',
+  tone:
+    'Email tone drill (Writing): 6 items. Each names a reader (a professor, an academic advisor, a university office, a club president, a classmate the learner does not know well) and one sentence that is too casual, too direct or too demanding for that reader (slang, "Hey", "I need you to", "ASAP", missing please, texting abbreviations), plus a better version in the right register and a one-line tip.',
   longRepeat:
     'Speaking "Listen and Repeat" long-sentence set: a campus setting and 6 sentences of 12-20 words each (getting longer), with clauses and phrases that are natural to say, as a guide or staff member would say them.',
 };
@@ -52,6 +54,29 @@ export function toeflGenPrompt(i: ToeflGenInput): string {
   const focus = i.focusType && !['build', 'email', 'discussion', 'complete'].includes(i.kind) ? ` Include at least two "${i.focusType}" questions; the learner needs practice with that type.` : '';
   const topic = i.topic ? ` Topic: ${i.topic}.` : '';
   return `${TASK[i.kind]} ${LEVEL[i.difficulty]}${topic}${focus}`;
+}
+
+const LETTER = ['A', 'B', 'C', 'D'];
+
+export function explainPrompt(i: ExplainInput): string {
+  const opts = i.options.map((o, k) => `${LETTER[k]}. ${o}`).join('\n');
+  const history = (i.history ?? []).map((h) => `Learner: ${h.q}\nYou: ${h.a}`).join('\n');
+  const ask = i.followUp
+    ? `The learner now asks: "${i.followUp}". Answer that, briefly.`
+    : `Explain why ${i.picked == null ? 'the learner had no answer' : `${LETTER[i.picked]} (the learner's choice) is wrong`} and why ${LETTER[i.correct]} is right. Point to the exact words in the text that decide it, and name the trap if there is one.`;
+  return `A TOEFL practice question for an Arabic-speaking learner.${i.context ? `\nText or transcript:\n---\n${i.context.slice(0, 2500)}\n---` : ''}\nQuestion: ${i.question}\n${opts}\nCorrect: ${LETTER[i.correct]}.${history ? `\n\nEarlier in this chat:\n${history}` : ''}\n\n${ask} ${i.arabic ? 'Also give the explanation in short, simple Modern Standard Arabic in "arabic".' : 'Set "arabic" to null.'}`;
+}
+
+export function arabicPrompt(i: ArabicInput): string {
+  return `Translate each English explanation from a TOEFL practice app into short, simple Modern Standard Arabic for a learner. Keep English words that are being explained (quote them in English). Return exactly ${i.texts.length} items in the same order:\n${i.texts.map((t, k) => `${k + 1}. ${t}`).join('\n')}`;
+}
+
+export function notesFeedbackPrompt(i: NotesFeedbackInput): string {
+  return `TOEFL note-taking practice. Lecture: "${i.title}". Key points a good note-taker would write:\n${i.keyPoints.map((p, k) => `${k + 1}. ${p}`).join('\n')}\n\nThe learner's notes (typed while listening once):\n---\n${i.notes || '(empty)'}\n---\n\nFor each key point, say whether the notes capture it in any form (abbreviations, symbols and partial words count). Then say what was missed and give 2-3 tips that fit these notes (abbreviations, structure, what to skip).`;
+}
+
+export function planCheckPrompt(i: PlanCheckInput): string {
+  return `TOEFL "Academic Discussion" task: ${JSON.stringify(i.prompt)}\nIn 60 seconds the learner planned their post:\nView: ${i.view}\nReason: ${i.reason}\nExample: ${i.example}\n\nJudge the plan, not the language: is the view a clear answer to the professor's question, is the reason relevant and new (not just repeating the two students), is the example concrete and does it support the reason? Score 1-5 for how well a post from this plan could score, and give a stronger plan in note form going in the same direction.`;
 }
 
 export function speakComparePrompt(i: SpeakCompareInput): string {

@@ -5,6 +5,7 @@ import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { SKILLS } from './record.ts';
+import { SoundsFromToefl } from './SpeakingTools.tsx';
 
 type IconName = Parameters<typeof Icon>[0]['name'];
 
@@ -102,11 +103,14 @@ function tools(section: Section, dueWords: number, openErrors: number): Tool[] {
         { to: '/toefl/writing/practice', icon: 'spark', title: 'Test tasks', desc: 'Build a Sentence, Email, Discussion; rewrite and rescore' },
         { to: '/toefl/writing/grammar', icon: 'repeat', title: 'Build a Sentence grammar', desc: 'Indirect questions, relative clauses, passive…' },
         { to: '/toefl/writing/phrases', icon: 'book', title: 'Phrase bank', desc: 'Email and discussion phrases, with a drill' },
+        { to: '/toefl/writing/planner', icon: 'bolt', title: '1-minute essay planner', desc: 'Plan a discussion post in 60 s, get it checked, then write it' },
+        { to: '/toefl/writing/tone', icon: 'chat', title: 'Email tone trainer', desc: 'Rewrite casual sentences for a professor or office' },
         { to: '/toefl/writing/errors', icon: 'target', title: 'Your error patterns', desc: openErrors ? `${openErrors} mistake${openErrors === 1 ? '' : 's'} to fix` : 'Collected from your scored writing' },
         { to: '/toefl/typing', icon: 'bolt', title: 'Typing practice', desc: 'Speed and accuracy, no spellcheck' },
       ];
     case 'speaking':
       return [
+        { to: '/toefl/speaking/quick', icon: 'bolt', title: '15-second quick answers', desc: 'Start speaking within 2 seconds' },
         { to: '/toefl/speaking/coach', icon: 'chat', title: 'Answer structure coach', desc: 'Cues while you speak, then a band 5.5 version of your answer' },
         { to: '/toefl/speaking/bank', icon: 'book', title: 'Interview topic bank', desc: 'Questions by theme with model answers' },
         { to: '/toefl/speaking/long', icon: 'repeat', title: 'Long-sentence repeat', desc: '12-20 words, built up chunk by chunk' },
@@ -124,7 +128,7 @@ export function SkillHome({ section }: { section: Section }) {
   const due = Object.values(t.vocab).filter((v) => v.due <= now).length;
   const open = t.writeErrors.filter((e) => e.fixed < 2).length;
   const testTo = section === 'speaking' ? '/toefl/mock' : `/toefl/${section}/test`;
-  const drillTo = section === 'speaking' ? '/toefl/speaking/long' : `/toefl/${section}/drill`;
+  const drillTo = `/toefl/${section}/drill`;
   return (
     <div className="stack">
       <h1>{SECTION_LABELS[section]}</h1>
@@ -153,6 +157,7 @@ export function SkillHome({ section }: { section: Section }) {
           </a>
         ))}
       </div>
+      {section === 'speaking' && <SoundsFromToefl />}
     </div>
   );
 }

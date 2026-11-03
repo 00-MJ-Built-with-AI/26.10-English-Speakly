@@ -4,6 +4,9 @@ import type { ToeflResult } from '../../../shared/tasks.ts';
 import { INTERVIEW_SECONDS, INTERVIEW_SETS, REPEAT_SECONDS, repeatBand } from '../../content/toefl.ts';
 import { fluencyScore } from '../../engine/scoring.ts';
 import { wordAccuracy } from '../../engine/text.ts';
+import { addSoundSamples, soundSamples, weakSounds } from '../../engine/toeflExtras.ts';
+import { soundById } from '../../content/sounds.ts';
+import { href } from '../../lib/router.ts';
 import { aiTask } from '../../lib/api.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { Assessment } from '../../speech/index.ts';
@@ -64,6 +67,7 @@ export function CoachAnswer({ question, model }: { question: string; model?: str
     }
     setA(r);
     setState('scoring');
+    if (r.engine === 'azure') app.update((u) => addSoundSamples(u.toefl.sounds, soundSamples(r)));
     const seconds = r.speechMs / 1000;
     try {
       const [s, c] = await Promise.all([
@@ -330,6 +334,7 @@ export function LongRepeat() {
     const a = await mic.listen({ reference: target, maxSeconds: REPEAT_SECONDS(target) + 2, endSilenceMs: 1500, noSpeechMs: (REPEAT_SECONDS(target) + 2) * 1000, record: true });
     if (!a) return;
     setLast({ a, ref: target });
+    if (a.engine === 'azure') app.update((u) => addSoundSamples(u.toefl.sounds, soundSamples(a)));
     if (full) setBands((b) => [...b.slice(0, i), repeatBand(wordAccuracy(target, a.text), a.pron)]);
   }
 
@@ -418,6 +423,195 @@ export function LongRepeat() {
               )}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Easy everyday questions for starting to speak at once. */
+const QUICK = [
+  'What did you have for breakfast today?',
+  'What is your favorite place in your city?',
+  'How do you usually get to work or class?',
+  'What did you do last weekend?',
+  'Do you prefer mornings or evenings? Why?',
+  'What is a skill you would like to learn?',
+  'Describe your bedroom in a few words.',
+  'Who is someone you admire?',
+  'What kind of music do you like?',
+  'What is the best gift you have ever received?',
+  'Do you like cooking? Why or why not?',
+  'What is your favorite season?',
+  'What app do you use most on your phone?',
+  'Where would you like to travel next?',
+  'What do you usually do to relax?',
+  'What was your favorite subject at school?',
+  'Do you prefer studying alone or in a group?',
+  'What is a good book or film you saw recently?',
+  'How do you stay healthy?',
+  'What is something that made you happy this week?',
+  'Do you prefer the city or the countryside?',
+  'What time do you usually go to sleep?',
+  'What is your dream job?',
+  'What is a tradition in your family?',
+  'How do you usually spend a holiday?',
+  'What would you do with a free afternoon?',
+  'What sport do you enjoy watching or playing?',
+  'What is the most useful thing you learned this year?',
+  'Do you like rainy days? Why?',
+  'What do you like about your neighborhood?',
+];
+
+const shuffled = <T,>(xs: T[]) => xs.map((x) => [Math.random(), x] as const).sort((a, b) => a[0] - b[0]).map(([, x]) => x);
+
+/** Five quick questions, 15 seconds each: the goal is to start speaking within 2 seconds. */
+export function QuickRound({ onDone }: { onDone?: () => void }) {
+  const app = useApp();
+  const mic = useListen();
+  const { speak, speaking } = useSpeak();
+  const elapsed = useElapsed();
+  const [qs] = useState(() => shuffled(QUICK).slice(0, 5));
+  const [i, setI] = useState(-1);
+  const [res, setRes] = useState<(Assessment | null)[]>([]);
+  const acc = useRef<(Assessment | null)[]>([]);
+  const secs = useSeconds(mic.state === 'listening');
+
+  async function run(n: number) {
+    setI(n);
+    await speak(qs[n], 1);
+    const a = await mic.listen({ maxSeconds: 15, endSilenceMs: 4000, noSpeechMs: 8000, record: false });
+    acc.current[n] = a;
+    setRes([...acc.current]);
+    if (a?.engine === 'azure') app.update((u) => addSoundSamples(u.toefl.sounds, soundSamples(a)));
+    if (n + 1 < qs.length) run(n + 1);
+    else finish(acc.current);
+  }
+  function finish(all: (Assessment | null)[]) {
+    const delays = all.filter((a): a is Assessment => Boolean(a && a.engine !== 'typed')).map((a) => a.startDelayMs);
+    if (delays.length) app.update((u) => (u.toefl.quick = [...u.toefl.quick, ...delays].slice(-30)));
+    app.logAttempt({ at: Date.now(), kind: 'toefl', title: 'TOEFL quick answers', seconds: elapsed(), scores: {}, detail: { task: 'quick' } });
+    setI(qs.length);
+  }
+
+  if (i < 0) {
+    return (
+      <div className="stack">
+        <p style={{ margin: 0 }}>5 easy questions, 15 seconds each, one after another. Start talking right away; say anything true and simple. The microphone opens by itself.</p>
+        <button className="btn primary" onClick={() => run(0)} style={{ alignSelf: 'flex-start' }}>
+          <Icon name="mic" size={16} /> Start
+        </button>
+      </div>
+    );
+  }
+  if (i >= qs.length) {
+    const real = res.filter((a): a is Assessment => Boolean(a && a.engine !== 'typed'));
+    const avg = real.length ? real.reduce((x, a) => x + a.startDelayMs, 0) / real.length / 1000 : null;
+    return (
+      <div className="stack">
+        {avg != null && (
+          <span className={`chip ${avg <= 2 ? 'good' : avg <= 3.5 ? 'ok' : 'bad'}`} style={{ alignSelf: 'flex-start', fontSize: '1rem' }}>
+            Started after {avg.toFixed(1)} s on average
+          </span>
+        )}
+        {qs.map((q, k) => (
+          <div key={q} className="spread small">
+            <span>{q}</span>
+            <span className="muted">{res[k] ? (res[k]!.engine === 'typed' ? 'typed' : `${(res[k]!.startDelayMs / 1000).toFixed(1)} s · ${res[k]!.text.split(/\s+/).filter(Boolean).length} words`) : 'no answer'}</span>
+          </div>
+        ))}
+        <div className="small muted">Aim: start within 2 seconds. Use a starter while you think: "Well, I'd say…", "Honestly,…", "That's easy:…".</div>
+        <div className="row">
+          {onDone ? (
+            <button className="btn primary" onClick={onDone}>
+              Next part <Icon name="next" size={14} />
+            </button>
+          ) : (
+            <button className="btn primary" onClick={() => location.reload()}>
+              Another round
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="stack" style={{ textAlign: 'center' }}>
+      <div className="small muted">
+        Question {i + 1} of {qs.length}
+      </div>
+      <div className="prompt-text">{qs[i]}</div>
+      {speaking && <div className="muted">Listen…</div>}
+      {mic.state === 'listening' && (
+        <div className="stack">
+          <span className={`chip ${secs < 2 ? 'good' : 'bad'}`} style={{ alignSelf: 'center' }}>
+            {Math.max(0, Math.ceil(15 - secs))} s
+          </span>
+          <div className="partial">{mic.partial}</div>
+          {!mic.canListen && <MicControl {...mic} onStart={() => {}} onStop={mic.stop} onTyped={mic.submitTyped} canListen={false} />}
+        </div>
+      )}
+      {mic.error && <div className="banner error">{mic.error}</div>}
+    </div>
+  );
+}
+
+export function QuickAnswers() {
+  const { user } = useApp();
+  const q = user.toefl.quick;
+  const avg = q.length ? q.reduce((a, b) => a + b, 0) / q.length / 1000 : null;
+  return (
+    <div className="stack">
+      <h1>15-second quick answers</h1>
+      {avg != null && <div className="small muted">Your recent average start: {avg.toFixed(1)} s (aim: under 2 s).</div>}
+      <div className="card">
+        <QuickRound />
+      </div>
+    </div>
+  );
+}
+
+/** The 10-minute speaking drill: a quick-answer round, then one coached interview answer. */
+export function SpeakingDrill() {
+  const [step, setStep] = useState(0);
+  const [q] = useState(() => pick(ALL_QUESTIONS));
+  return (
+    <div className="stack">
+      <h1>Speaking: daily drill</h1>
+      <div className="small muted">Part {Math.min(step + 1, 2)} of 2: {step === 0 ? 'quick answers (start fast)' : 'one coached interview answer'}</div>
+      <div className="card">{step === 0 ? <QuickRound onDone={() => setStep(1)} /> : <CoachAnswer question={q} />}</div>
+      {step === 1 && (
+        <a className="btn" href={href('/toefl/speaking')} style={{ alignSelf: 'flex-start' }}>
+          Done: back to Speaking
+        </a>
+      )}
+    </div>
+  );
+}
+
+/** Sounds that keep scoring low in TOEFL speaking answers, linked to their drills. */
+export function SoundsFromToefl() {
+  const { user } = useApp();
+  const weak = weakSounds(user.toefl.sounds).slice(0, 4);
+  const measured = Object.keys(user.toefl.sounds).length;
+  return (
+    <div className="card stack">
+      <h3 style={{ margin: 0 }}>Sounds to fix from your TOEFL answers</h3>
+      {weak.length ? (
+        <div className="grid grid-2">
+          {weak.map((w) => (
+            <a key={w.id} className="list-item" href={href(`/practice/sounds/${w.id}`)} style={{ marginTop: 0 }}>
+              <span className="grow">
+                <b>{soundById(w.id)?.title ?? w.id}</b>
+                <div className="small muted">Score {w.score} in your answers</div>
+              </span>
+              <Icon name="next" size={14} />
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div className="small muted">
+          {measured ? 'No weak sounds so far in your TOEFL answers.' : 'Sound scores come from your spoken TOEFL answers once Azure speech is set up (not in test mode).'}
         </div>
       )}
     </div>

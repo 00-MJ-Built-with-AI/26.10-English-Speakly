@@ -264,6 +264,28 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         model: '(Test mode) A model answer appears with the AI key.',
       } as TaskMap[K][1];
     }
+    case 'explain': {
+      const L = ['A', 'B', 'C', 'D'];
+      return {
+        answer: i.followUp ? '(Test mode) Follow-up answers appear once the AI key is added.' : `(Test mode) The correct answer is ${L[Number(i.correct)]}: "${(i.options as string[])[Number(i.correct)]}". With the AI key you get a real explanation that points to the words in the text.`,
+        arabic: i.arabic ? '(وضع التجربة) يظهر الشرح بالعربية بعد إضافة مفتاح الذكاء الاصطناعي.' : null,
+      } as TaskMap[K][1];
+    }
+    case 'arabic':
+      return { arabic: (i.texts as string[]).map(() => '(وضع التجربة) الشرح بالعربية يظهر بعد إضافة مفتاح الذكاء الاصطناعي.') } as TaskMap[K][1];
+    case 'notesFeedback': {
+      const have = new Set(String(i.notes).toLowerCase().split(/\W+/).filter((w) => w.length > 3).map((w) => w.slice(0, 5)));
+      const covered = (i.keyPoints as string[]).map((p) => {
+        const ws = p.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+        return ws.filter((w) => have.has(w.slice(0, 5))).length / Math.max(1, ws.length) >= 0.4;
+      });
+      return { covered, missed: '(Test mode) Checked by matching words only.', tips: ['Write one line per signposted point ("First", "The key point is").', 'Use symbols: → for causes, ↑↓ for changes, e.g. for examples.'] } as TaskMap[K][1];
+    }
+    case 'planCheck': {
+      const parts = [i.view, i.reason, i.example].map((x) => countWords(String(x ?? '')));
+      const score = Math.min(5, 1 + parts.filter((n) => n >= 3).length + (parts[2] >= 6 ? 1 : 0));
+      return { score, good: parts[0] >= 3 ? ['You have a clear view.'] : [], fix: parts[2] < 6 ? ['Make the example specific: who, where, what happened.'] : [], better: { view: String(i.view || 'My view…'), reason: String(i.reason || 'because…'), example: String(i.example || 'for example…') } } as TaskMap[K][1];
+    }
     case 'speakCompare': {
       const t = String(i.transcript ?? '').toLowerCase();
       const has = (re: RegExp) => re.test(t);

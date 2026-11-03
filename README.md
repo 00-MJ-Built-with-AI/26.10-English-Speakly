@@ -12,7 +12,8 @@ and progress, Azure AI Speech for pronunciation scoring and the tutor's voice, C
 - **TOEFL**: all four 2026 sections (Reading, Listening, Writing, Speaking) with AI-written items, a
   timed adaptive full mock, a page per skill (band tracker, section test, daily drill, strategy lessons,
   skill tools), typing practice, a mistake log by question type, and score-report photo reading with a
-  50-minute daily plan toward band 5.5.
+  50-minute daily plan toward band 5.5. Missed questions get an AI explanation (optionally in Arabic) and
+  come back for review; a readiness predictor, weekly report, exam-day checklist and calendar export.
 - **More practice**: fast-track level test, daily speaking journal, "say it better" from Arabic,
   personal phrase bank, your own texts, filler and pause tracker, intonation graph, mouth diagrams.
 - **Conversation modes**: debate, phone calls, small talk, job interview from your CV; the tutor

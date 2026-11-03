@@ -26,7 +26,8 @@ import { Mistakes } from './ui/toefl/Mistakes.tsx';
 import { FullMock, SectionTest } from './ui/toefl/FullMock.tsx';
 import { Lessons, SkillHome, ToeflTabs } from './ui/toefl/Skill.tsx';
 import { DictationPractice, ErrorPatterns, GrammarDrills, ImpliedPractice, NotesPractice, ParaphrasePractice, PhraseBank, SpeedReading, SpellingPractice, VocabTrainer } from './ui/toefl/Tools.tsx';
-import { Coach, LongRepeat, TopicBank } from './ui/toefl/SpeakingTools.tsx';
+import { Coach, LongRepeat, QuickAnswers, SpeakingDrill, TopicBank } from './ui/toefl/SpeakingTools.tsx';
+import { EssayPlanner, ExamDay, ToneTrainer, WeeklyReport, WrongReview } from './ui/toefl/Extras.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
 import { SettingsPage } from './ui/pages/Settings.tsx';
@@ -264,14 +265,20 @@ function Shell() {
           coach: () => <Coach />,
           bank: () => <TopicBank />,
           long: () => <LongRepeat />,
+          planner: () => <EssayPlanner />,
+          tone: () => <ToneTrainer />,
+          quick: () => <QuickAnswers />,
         };
         if (c === 'lessons') page = <Lessons section={b} />;
         else if (b !== 'speaking' && (c === 'practice' || (!c && task))) page = <SectionPractice key={`${b}-${task}`} section={b} task={task} />;
         else if (b !== 'speaking' && c === 'test') page = <SectionTest key={b} section={b} />;
-        else if (b !== 'speaking' && c === 'drill') page = <Drill key={b} section={b} />;
+        else if (c === 'drill') page = b === 'speaking' ? <SpeakingDrill /> : <Drill key={b} section={b} />;
         else if (c && tool[c]) page = tool[c]();
         else page = <SkillHome section={b} />;
       } else if (b === 'typing') page = <Typing />;
+      else if (b === 'review') page = <WrongReview />;
+      else if (b === 'exam-day') page = <ExamDay />;
+      else if (b === 'weekly') page = <WeeklyReport />;
       else if (b === 'scores') page = <Scores />;
       else if (b === 'mistakes') page = <Mistakes />;
       else if (b === 'full-mock') {

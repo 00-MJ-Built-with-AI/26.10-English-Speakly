@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeGap, buildPlan, weakTypes } from '../src/engine/toeflPlan.ts';
 import { practiceBand, skillBand, weakestSkill } from '../src/engine/toeflSkill.ts';
+import { planToIcs, readiness, reviewNext, weekKey } from '../src/engine/toeflExtras.ts';
 import { bandFromSection30, bandFromTotal, comparableTotal, overallBand, section30FromBand, totalRange, type ToeflScore } from '../src/engine/toeflScale.ts';
 
 const score = (bands: ToeflScore['bands'], scores30?: ToeflScore['scores30'], total?: number): ToeflScore => ({
@@ -91,5 +92,40 @@ describe('plan offset and weakest skill', () => {
     const toefl = { scores: [score({ reading: 5, listening: 5, writing: 4.5, speaking: 5 })], log: [], sectionTests: [], target: 5.5 };
     expect(weakestSkill({ toefl, toeflBand: null })).toBe('writing');
     expect(weakestSkill({ toefl: { ...toefl, scores: [] }, toeflBand: 5 })).toBe('writing');
+  });
+});
+
+describe('review, readiness and calendar', () => {
+  it('schedules missed questions and drops them after two right answers', () => {
+    const now = Date.parse('2026-11-03T10:00:00');
+    const a = reviewNext({ box: 0, due: now }, true, now)!;
+    expect(a.box).toBe(1);
+    expect(a.due - now).toBe(3 * 86_400_000);
+    expect(reviewNext(a, true, now)).toBeNull();
+    expect(reviewNext(a, false, now)!.box).toBe(0);
+  });
+  it('predicts ready, close or not yet against the goal', () => {
+    const now = Date.parse('2026-11-03');
+    const s = (bands: ToeflScore['bands']) => ({ ...score(bands), at: now - 86_400_000, date: '2026-11-02' });
+    // One official score plus a section test per skill at the same band: enough results for a narrow range.
+    const d = (bands: ToeflScore['bands']) => ({ scores: [s(bands)], log: [], sectionTests: (Object.keys(bands) as (keyof typeof bands)[]).map((k) => ({ at: now - 2 * 86_400_000, section: k, band: bands[k] })) });
+    expect(readiness(d({ reading: 6, listening: 6, writing: 5.5, speaking: 5.5 }), null, 5.5, 5, now).verdict).toBe('ready');
+    expect(readiness(d({ reading: 5.5, listening: 5, writing: 5, speaking: 5 }), null, 5.5, 5, now).verdict).toBe('close');
+    expect(readiness(d({ reading: 5.5, listening: 5, writing: 4, speaking: 5 }), null, 5.5, 5, now).verdict).toBe('not-yet');
+    expect(readiness({ scores: [], log: [], sectionTests: [] }, null, 5.5, 5, now).verdict).toBe('need-data');
+    const r = readiness({ scores: [s({ reading: 5, listening: 5, writing: 5, speaking: 5 })], log: [], sectionTests: [] }, null, 5.5, 5, now).skills[0];
+    expect([r.lo, r.band, r.hi]).toEqual([4, 5, 6]);
+  });
+  it('writes the plan as a calendar file', () => {
+    const ics = planToIcs([{ day: 1, items: [{ label: 'Reading, test', to: '/x', minutes: 20 }] }], new Date(2026, 10, 4), 19, 0);
+    expect(ics).toContain('BEGIN:VEVENT');
+    expect(ics).toContain('DTSTART:20261104T190000');
+    expect(ics).toContain('DTEND:20261104T192000');
+    expect(ics).toContain(String.raw`Reading\, test`);
+  });
+  it('finds the Monday of a week', () => {
+    expect(weekKey(new Date(2026, 10, 5).getTime())).toBe('2026-11-02');
+    expect(weekKey(new Date(2026, 10, 2).getTime())).toBe('2026-11-02');
+    expect(weekKey(new Date(2026, 10, 1).getTime())).toBe('2026-10-26');
   });
 });

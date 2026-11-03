@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { GenKind, GenOut, Question, WritingScore } from '../../../shared/toefl.ts';
+import type { Explain, GenKind, GenOut, NotesFeedback, Question, WritingScore } from '../../../shared/toefl.ts';
 import { aiTask } from '../../lib/api.ts';
 import { useApp } from '../../lib/store.tsx';
 import { align, countWords, words as splitWords } from '../../engine/text.ts';
@@ -13,6 +13,117 @@ export interface TaskOutcome {
   writing?: WritingScore;
   /** A rewrite of an already scored answer: not counted again in the stats. */
   revision?: boolean;
+  /** Missed questions, for the wrong-answer review. */
+  missed?: { question: ReviewQuestion; context?: string }[];
+}
+
+export interface ReviewQuestion {
+  question: string;
+  options: string[];
+  answer: number;
+  type: string;
+  explanation: string;
+}
+
+const arabicCache = new Map<string, string>();
+
+/** Arabic versions of explanations when the learner turned them on (fetched once per text). */
+export function useArabic(texts: string[]): Record<string, string> {
+  const { user } = useApp();
+  const on = user.toefl.arabic;
+  const key = texts.join('\u0001');
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    const need = texts.filter((t) => t && !arabicCache.has(t));
+    if (!need.length) return;
+    let live = true;
+    aiTask('arabic', { texts: need })
+      .then((r) => {
+        need.forEach((t, k) => arabicCache.set(t, r.arabic[k] ?? ''));
+        if (live) setTick((n) => n + 1);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [on, key]); // texts are compared by content
+  if (!on) return {};
+  return Object.fromEntries(texts.filter((t) => arabicCache.has(t)).map((t) => [t, arabicCache.get(t)!]));
+}
+
+export function ArabicLine({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <div className="small" dir="rtl" lang="ar" style={{ textAlign: 'right', color: 'var(--muted)' }}>
+      {text}
+    </div>
+  );
+}
+
+/** "Why?": the AI explains a missed question, with follow-up questions. */
+export function WhyBox({ q, picked, context }: { q: ReviewQuestion; picked: number | null; context?: string }) {
+  const { user } = useApp();
+  const [open, setOpen] = useState(false);
+  const [turns, setTurns] = useState<{ q: string; a: Explain }[]>([]);
+  const [ask, setAsk] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function run(followUp?: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const a = await aiTask('explain', {
+        context,
+        question: q.question,
+        options: q.options,
+        correct: q.answer,
+        picked,
+        followUp,
+        history: turns.map((t) => ({ q: t.q, a: t.a.answer })),
+        arabic: user.toefl.arabic,
+      });
+      setTurns((x) => [...x, { q: followUp ?? 'Why?', a }]);
+      setAsk('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!open) {
+    return (
+      <button
+        className="btn small ghost"
+        style={{ alignSelf: 'flex-start' }}
+        onClick={() => {
+          setOpen(true);
+          run();
+        }}
+      >
+        Why? Explain this
+      </button>
+    );
+  }
+  return (
+    <div className="soft stack small">
+      {turns.map((t, k) => (
+        <div key={k} className="stack" style={{ gap: 2 }}>
+          {k > 0 && <b>{t.q}</b>}
+          <div>{t.a.answer}</div>
+          <ArabicLine text={t.a.arabic ?? undefined} />
+        </div>
+      ))}
+      {busy && <div className="muted">Thinking…</div>}
+      {error && <div className="banner error">{error}</div>}
+      <div className="row">
+        <input type="text" value={ask} onChange={(e) => setAsk(e.target.value)} placeholder="Ask a follow-up…" onKeyDown={(e) => e.key === 'Enter' && ask.trim() && run(ask.trim())} style={{ flex: 1, minWidth: 160 }} />
+        <button className="btn small" disabled={!ask.trim() || busy} onClick={() => run(ask.trim())}>
+          Ask
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export type Mode = 'practice' | 'mock';
@@ -31,13 +142,29 @@ function shuffle<T>(xs: T[], seed: number): T[] {
 }
 
 /** Multiple-choice questions; in practice mode shows answers and explanations after submitting. */
-export function McqList({ questions, mode, onSubmit, submitLabel = 'Check answers' }: { questions: Question[]; mode: Mode; onSubmit: (o: TaskOutcome) => void; submitLabel?: string }) {
+export function McqList({
+  questions,
+  mode,
+  onSubmit,
+  submitLabel = 'Check answers',
+  context,
+}: {
+  questions: (Question | ReviewQuestion)[];
+  mode: Mode;
+  onSubmit: (o: TaskOutcome) => void;
+  submitLabel?: string;
+  /** The passage or transcript, for "Why?" and the wrong-answer review. */
+  context?: string;
+}) {
   const [picked, setPicked] = useState<(number | null)[]>(() => questions.map(() => null));
   const [done, setDone] = useState(false);
+  const wrong = done && mode === 'practice' ? questions.filter((q, i) => picked[i] !== q.answer).map((q) => q.explanation) : [];
+  const arabic = useArabic(wrong);
   function submit() {
     const marks = questions.map((q, i) => ({ type: q.type, correct: picked[i] === q.answer }));
     setDone(true);
-    onSubmit({ points: marks.filter((m) => m.correct).length, max: questions.length, marks });
+    const missed = questions.filter((q, i) => picked[i] !== q.answer).map((q) => ({ question: q, context }));
+    onSubmit({ points: marks.filter((m) => m.correct).length, max: questions.length, marks, missed });
   }
   return (
     <div className="stack">
@@ -66,6 +193,12 @@ export function McqList({ questions, mode, onSubmit, submitLabel = 'Check answer
             <div className="small muted">
               <span className="chip">{q.type}</span> {q.explanation}
             </div>
+          )}
+          {done && mode === 'practice' && picked[i] !== q.answer && (
+            <>
+              <ArabicLine text={arabic[q.explanation]} />
+              <WhyBox q={q} picked={picked[i]} context={context} />
+            </>
           )}
         </div>
       ))}
@@ -272,6 +405,7 @@ export function ListeningSet({
         <McqList
           questions={data.questions}
           mode={mode}
+          context={lines.map((l) => ('speaker' in l && l.speaker ? `${l.speaker === 'woman' ? 'Woman' : 'Man'}: ` : '') + l.text).join('\n')}
           onSubmit={(o) => {
             setDone(true);
             onSubmit(o);
@@ -550,7 +684,7 @@ export function TaskView({ kind, data, mode, onSubmit }: { kind: GenKind; data: 
             <h3 style={{ margin: 0 }}>{d.title}</h3>
             <p style={{ margin: 0, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{d.text}</p>
           </div>
-          <McqList questions={d.questions} mode={mode} onSubmit={onSubmit} />
+          <McqList questions={d.questions} mode={mode} onSubmit={onSubmit} context={d.text} />
         </div>
       );
     }
@@ -580,6 +714,7 @@ export function TaskView({ kind, data, mode, onSubmit }: { kind: GenKind; data: 
                 </div>
               </>
             ),
+            stemText: `Which sentence keeps the full meaning of: "${it.sentence}"`,
             options: it.options,
             answer: it.answer,
             explanation: it.explanation,
@@ -603,6 +738,7 @@ export function TaskView({ kind, data, mode, onSubmit }: { kind: GenKind; data: 
                 </div>
               </>
             ),
+            stemText: `What does "${it.word}" mean in: "${it.sentence}"`,
             options: it.options,
             answer: it.answer,
             explanation: `${it.word}: ${it.meaning}`,
@@ -617,6 +753,8 @@ export function TaskView({ kind, data, mode, onSubmit }: { kind: GenKind; data: 
           onSubmit={onSubmit}
           items={(data as GenOut<'implied'>).items.map((it) => ({
             stem: <div className="small muted">{it.question}</div>,
+            stemText: it.question,
+            context: it.lines.map((l) => `${l.speaker === 'woman' ? 'Woman' : 'Man'}: ${l.text}`).join('\n'),
             audio: it.lines,
             options: it.options,
             answer: it.answer,
@@ -630,6 +768,8 @@ export function TaskView({ kind, data, mode, onSubmit }: { kind: GenKind; data: 
       return <DictationItems data={data as GenOut<'dictation'>} mode={mode} onSubmit={onSubmit} />;
     case 'notes':
       return <NotesTask data={data as GenOut<'notes'>} mode={mode} onSubmit={onSubmit} />;
+    case 'tone':
+      return <ToneItems data={data as GenOut<'tone'>} mode={mode} onSubmit={onSubmit} />;
     default:
       return null;
   }
@@ -650,6 +790,9 @@ function highlight(sentence: string, word: string): ReactNode {
 
 interface ChoiceItem {
   stem: ReactNode;
+  /** The stem as plain text (for "Why?" and the review). */
+  stemText: string;
+  context?: string;
   /** Played before the options appear (listening items). */
   audio?: { text: string; speaker?: 'woman' | 'man' }[];
   options: string[];
@@ -664,11 +807,15 @@ export function ChoiceItems({ items, type, mode, onSubmit }: { items: ChoiceItem
   const [shown, setShown] = useState(false);
   const item = items[i];
   useEffect(() => setShown(false), [i]);
+  const missedNow = shown && mode === 'practice' && item && picked[i] !== item.answer;
+  const arabic = useArabic(missedNow ? [item.explanation] : []);
+  const asQuestion = (it: ChoiceItem): ReviewQuestion => ({ question: it.stemText, options: it.options, answer: it.answer, type, explanation: it.explanation });
   function next() {
     if (i + 1 < items.length) setI(i + 1);
     else {
       const marks = items.map((it, k) => ({ type, correct: picked[k] === it.answer }));
-      onSubmit({ points: marks.filter((m) => m.correct).length, max: marks.length, marks });
+      const missed = items.filter((it, k) => picked[k] !== it.answer).map((it) => ({ question: asQuestion(it), context: it.context }));
+      onSubmit({ points: marks.filter((m) => m.correct).length, max: marks.length, marks, missed });
       setI(items.length);
     }
   }
@@ -697,6 +844,12 @@ export function ChoiceItems({ items, type, mode, onSubmit }: { items: ChoiceItem
         );
       })}
       {shown && mode === 'practice' && <div className="small muted">{item.explanation}</div>}
+      {missedNow && (
+        <>
+          <ArabicLine text={arabic[item.explanation]} />
+          <WhyBox q={asQuestion(item)} picked={picked[i]} context={item.context} />
+        </>
+      )}
       {mode === 'practice' && !shown ? (
         <button className="btn primary" disabled={picked[i] == null} onClick={() => setShown(true)} style={{ alignSelf: 'flex-start' }}>
           Check
@@ -855,6 +1008,13 @@ export function NotesTask({ data, mode, onSubmit }: { data: GenOut<'notes'>; mod
   const player = usePlayer(mode, 1);
   const [notes, setNotes] = useState('');
   const [done, setDone] = useState(false);
+  const [fb, setFb] = useState<NotesFeedback | null>(null);
+  useEffect(() => {
+    if (!done || mode !== 'practice') return;
+    aiTask('notesFeedback', { title: data.title, keyPoints: data.keyPoints, notes })
+      .then(setFb)
+      .catch(() => {});
+  }, [done]); // once, after the questions
   return (
     <div className="stack">
       <h3 style={{ margin: 0 }}>{data.title}</h3>
@@ -865,6 +1025,7 @@ export function NotesTask({ data, mode, onSubmit }: { data: GenOut<'notes'>; mod
         <McqList
           questions={data.questions}
           mode={mode}
+          context={data.text}
           onSubmit={(o) => {
             setDone(true);
             onSubmit({ ...o, marks: [...o.marks, ...data.keyPoints.map((p) => ({ type: 'note-taking', correct: noteCoverage(p, notes) >= 0.4 }))] });
@@ -874,19 +1035,88 @@ export function NotesTask({ data, mode, onSubmit }: { data: GenOut<'notes'>; mod
       {done && mode === 'practice' && (
         <div className="soft stack">
           <b>Key points a good note-taker writes down</b>
-          {data.keyPoints.map((p) => {
-            const got = noteCoverage(p, notes) >= 0.4;
+          {data.keyPoints.map((p, k) => {
+            const got = fb ? fb.covered[k] : noteCoverage(p, notes) >= 0.4;
             return (
               <div key={p} className="small">
                 <span style={{ color: got ? 'var(--good)' : 'var(--bad)' }}>{got ? '✓' : '✗'}</span> {p}
               </div>
             );
           })}
+          {fb ? (
+            <div className="small stack" style={{ gap: 4 }}>
+              <div>{fb.missed}</div>
+              <ul style={{ margin: 0 }}>
+                {fb.tips.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="small muted">Checking your notes…</div>
+          )}
           <details>
             <summary className="small">Transcript</summary>
             <p className="small">{data.text}</p>
           </details>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Words and habits that sound too casual in an email to a professor or an office. */
+const CASUAL = /\b(hey|hi there|yo|gonna|wanna|gotta|ya|u|ur|pls|plz|thx|asap|ok\?|or what|i need you to|fix it|send me)\b|!{2,}/i;
+
+/** Email tone: rewrite a too-casual sentence for the reader, then compare with a model. */
+export function ToneItems({ data, mode, onSubmit }: { data: GenOut<'tone'>; mode: Mode; onSubmit: (o: TaskOutcome) => void }) {
+  const [i, setI] = useState(0);
+  const [text, setText] = useState('');
+  const [checked, setChecked] = useState(false);
+  const results = useRef<boolean[]>([]);
+  const item = data.items[i];
+  if (!item) return <div className="muted">Done.</div>;
+  const casual = CASUAL.exec(text);
+  const ok = !casual && countWords(text) >= 6;
+  function next() {
+    results.current[i] = ok;
+    setText('');
+    setChecked(false);
+    if (i + 1 < data.items.length) setI(i + 1);
+    else {
+      const marks = results.current.map((c) => ({ type: 'tone', correct: c }));
+      onSubmit({ points: marks.filter((m) => m.correct).length, max: marks.length, marks });
+      setI(data.items.length);
+    }
+  }
+  return (
+    <div className="stack">
+      <div className="small muted">
+        Item {i + 1} of {data.items.length} · writing to <b>{item.reader}</b>
+      </div>
+      <div className="soft">
+        <s className="muted">{item.casual}</s>
+      </div>
+      <textarea rows={3} spellCheck={false} value={text} disabled={checked} onChange={(e) => setText(e.target.value)} placeholder="Rewrite it in the right tone…" />
+      {checked && (
+        <div className="stack small">
+          {casual ? <div className="banner error">Still casual: “{casual[0]}”.</div> : countWords(text) < 6 ? <div className="banner error">Too short: a full, polite sentence works better.</div> : <div className="banner info">The tone works.</div>}
+          {mode === 'practice' && (
+            <div className="soft">
+              <b>Model:</b> {item.better}
+              <div className="muted">{item.tip}</div>
+            </div>
+          )}
+        </div>
+      )}
+      {!checked ? (
+        <button className="btn primary" disabled={!text.trim()} onClick={() => setChecked(true)} style={{ alignSelf: 'flex-start' }}>
+          Check
+        </button>
+      ) : (
+        <button className="btn primary" onClick={next} style={{ alignSelf: 'flex-start' }}>
+          {i + 1 < data.items.length ? 'Next' : 'Finish'}
+        </button>
       )}
     </div>
   );

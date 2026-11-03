@@ -1,5 +1,6 @@
 import type { GenKind } from '../../../shared/toefl.ts';
 import type { Section } from '../../engine/toeflScale.ts';
+import { weekKey } from '../../engine/toeflExtras.ts';
 import type { UserDoc } from '../../lib/types.ts';
 import type { TaskOutcome } from './tasks.tsx';
 
@@ -24,6 +25,7 @@ export const KIND_SECTION: Record<GenKind, Section> = {
   discussion: 'writing',
   interview: 'speaking',
   longRepeat: 'speaking',
+  tone: 'writing',
 };
 
 export const KIND_LABEL: Record<GenKind, string> = {
@@ -45,6 +47,7 @@ export const KIND_LABEL: Record<GenKind, string> = {
   discussion: 'Write for an Academic Discussion',
   interview: 'Interview topic bank',
   longRepeat: 'Long-sentence repeat',
+  tone: 'Email tone',
 };
 
 /** The real test tasks per section (the `key` is the ?task= value). */
@@ -75,10 +78,21 @@ const LOG_CAP = 300;
  */
 export function recordOutcome(u: UserDoc, kind: GenKind, o: TaskOutcome): void {
   const section = KIND_SECTION[kind];
+  const week = (u.toefl.typeWeeks[weekKey(Date.now())] ??= {});
   for (const m of o.marks) {
     const t = (u.toefl.typeStats[m.type] ??= { right: 0, total: 0 });
     t.total++;
     if (m.correct) t.right++;
+    const w = (week[m.type] ??= { right: 0, total: 0 });
+    w.total++;
+    if (m.correct) w.right++;
+  }
+  if (o.missed?.length) {
+    const now = Date.now();
+    u.toefl.review = [
+      ...u.toefl.review,
+      ...o.missed.map((m, k) => ({ id: `${now.toString(36)}-${k}`, at: now, kind, context: m.context?.slice(0, 2500), question: m.question, box: 0, due: now + 86_400_000 })),
+    ].slice(-200);
   }
   const s = (u.toefl.sectionStats[section] ??= { points: 0, max: 0 });
   // Essays count as much as five questions, as in the real Writing raw score.

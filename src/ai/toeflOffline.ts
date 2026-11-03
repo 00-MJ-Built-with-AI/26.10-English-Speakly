@@ -202,6 +202,14 @@ export const TOEFL_SAMPLES: { [K in GenKind]: GenOut<K> } = {
       "I think universities should set clear limits, not ban AI completely. On one hand, students need to show their own thinking, especially in writing. On the other hand, AI is going to be part of almost every job. For example, a professor could allow AI for brainstorming but require students to explain their final argument themselves. So the goal should be teaching responsible use.",
     ],
   },
+  tone: {
+    items: [
+      { reader: 'a professor', casual: 'Hey prof, I need the slides from Tuesday ASAP.', better: 'Dear Professor Lee, could you please share the slides from Tuesday\'s lecture when you have a moment?', tip: 'Formal greeting, a polite request instead of "I need", no "ASAP".' },
+      { reader: 'the housing office', casual: 'My heater is broken. Fix it.', better: 'I am writing to report that the heater in my room is not working. Could someone please take a look at it this week?', tip: 'Explain the problem and ask politely with "Could someone please".' },
+      { reader: 'an academic advisor', casual: "I wanna drop chem, is that ok or what?", better: 'I am thinking about dropping Chemistry 101, and I would appreciate your advice on whether that is a good idea.', tip: 'No "wanna" or "or what"; ask for advice.' },
+      { reader: 'a classmate you do not know well', casual: 'Send me your notes.', better: 'Hi Sam, would you mind sharing your notes from Monday? I missed the class because I was sick.', tip: 'Add a greeting, "would you mind", and a reason.' },
+    ],
+  },
   longRepeat: {
     topic: 'Campus tour',
     sentences: [

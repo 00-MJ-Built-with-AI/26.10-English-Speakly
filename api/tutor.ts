@@ -37,8 +37,8 @@ import {
 } from '../shared/tasks.js';
 import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
 import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.js';
-import { GEN, ScoreReport, SpeakCompare, WritingScore, type ScoreReportInput, type SpeakCompareInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
-import { speakComparePrompt, TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
+import { Arabic, Explain, GEN, NotesFeedback, PlanCheck, ScoreReport, SpeakCompare, WritingScore, type ArabicInput, type ExplainInput, type NotesFeedbackInput, type PlanCheckInput, type ScoreReportInput, type SpeakCompareInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
+import { arabicPrompt, explainPrompt, notesFeedbackPrompt, planCheckPrompt, speakComparePrompt, TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
 
 const MODEL = process.env.TUTOR_MODEL || 'claude-opus-5-5';
 /** Anthropic picks a fallback model if a request is declined by a safety classifier. */
@@ -203,6 +203,10 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
   },
   toeflWrite: (i: WritingInput) => structured(WritingScore, writingPrompt(i), 'medium'),
   speakCompare: (i: SpeakCompareInput) => structured(SpeakCompare, speakComparePrompt(i), 'medium'),
+  explain: (i: ExplainInput) => structured(Explain, explainPrompt(i), 'low', TOEFL_ITEM_SYSTEM),
+  arabic: (i: ArabicInput) => structured(Arabic, arabicPrompt(i), 'low'),
+  notesFeedback: (i: NotesFeedbackInput) => structured(NotesFeedback, notesFeedbackPrompt(i), 'low'),
+  planCheck: (i: PlanCheckInput) => structured(PlanCheck, planCheckPrompt(i), 'low'),
   scoreReport: (i: ScoreReportInput) =>
     structured(
       ScoreReport,

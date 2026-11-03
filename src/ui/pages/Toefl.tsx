@@ -11,10 +11,11 @@ import type { Attempt } from '../../lib/types.ts';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ExamCard } from '../components/ExamCard.tsx';
-import { analyzeBands, buildPlan, gapSummary, planOffset, weakTypes } from '../../engine/toeflPlan.ts';
+import { analyzeBands, gapSummary, weakTypes } from '../../engine/toeflPlan.ts';
+import { MONDAY, ReadinessCard, TodayPlan } from '../toefl/Extras.tsx';
 import { skillBand } from '../../engine/toeflSkill.ts';
 import { SECTION_LABELS, SECTIONS, type Section } from '../../engine/toeflScale.ts';
-import { daysUntil } from '../../engine/exam.ts';
+import { addSoundSamples, soundSamples } from '../../engine/toeflExtras.ts';
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -34,9 +35,8 @@ export function ToeflHub() {
   // Unknown skills count as band 4 for planning until there is data.
   const bands = Object.fromEntries(SECTIONS.map((s) => [s, est[s]?.band ?? 4])) as Record<Section, number>;
   const gap = analyzeBands(bands, t.target, t.minimum);
-  const daysLeft = user.settings.examDate ? daysUntil(user.settings.examDate) : null;
-  const today = buildPlan(gap, daysLeft != null && daysLeft > 0 ? daysLeft : null, 50, planOffset())[0];
   const weak = weakTypes(t.typeStats);
+  const { update } = useApp();
   return (
     <div className="stack">
       <h1>TOEFL iBT (2026 format)</h1>
@@ -71,19 +71,13 @@ export function ToeflHub() {
           A mock test is waiting for its Speaking part. <a href={href('/toefl/full-mock?finish=1')}>Finish it</a>
         </div>
       )}
-      <div className="card stack">
-        <div className="spread">
-          <h3 style={{ margin: 0 }}>Today's TOEFL plan</h3>
-          <span className="chip">{today.items.reduce((a, i) => a + i.minutes, 0)} min</span>
+      {MONDAY() && (
+        <div className="banner info">
+          It's Monday: your <a href={href('/toefl/weekly')}>weekly TOEFL report</a> is ready.
         </div>
-        {today.items.map((i) => (
-          <a key={i.to} className="list-item" href={href(i.to)} style={{ marginTop: 0 }}>
-            <span className="grow">{i.label}</span>
-            <span className="small muted">{i.minutes} min</span>
-          </a>
-        ))}
-        <div className="small muted">Weighted to the skills furthest from {t.target.toFixed(1)}. Wednesdays add a section test, Saturdays are a full mock.</div>
-      </div>
+      )}
+      <TodayPlan />
+      <ReadinessCard />
       <ExamCard history={history} />
       <div className="grid grid-2">
         <button className="btn primary big" onClick={() => go('/toefl/full-mock')}>
@@ -93,6 +87,32 @@ export function ToeflHub() {
           <Icon name="chart" /> Mistake log{weak.length ? ` (weakest: ${weak[0]})` : ''}
         </a>
       </div>
+      <div className="grid grid-3">
+        <a className="list-item" href={href('/toefl/review')} style={{ marginTop: 0 }}>
+          <span className="grow">
+            <b>Wrong-answer review</b>
+            <div className="small muted">{t.review.filter((r) => r.due <= Date.now()).length} due · {t.review.length} in review</div>
+          </span>
+        </a>
+        <a className="list-item" href={href('/toefl/weekly')} style={{ marginTop: 0 }}>
+          <span className="grow">
+            <b>Weekly report</b>
+            <div className="small muted">Bands, minutes, weak types, next focus</div>
+          </span>
+        </a>
+        <a className="list-item" href={href('/toefl/exam-day')} style={{ marginTop: 0 }}>
+          <span className="grow">
+            <b>Exam-day checklist</b>
+            <div className="small muted">{user.settings.examDate ? `Exam ${user.settings.examDate}` : 'Countdown and what to prepare'}</div>
+          </span>
+        </a>
+      </div>
+      <label className="card row small" style={{ flexWrap: 'nowrap' }}>
+        <input type="checkbox" checked={t.arabic} onChange={(e) => update((u) => (u.toefl.arabic = e.target.checked))} />
+        <span>
+          <b>Arabic explanations</b> — add a short Arabic explanation under every question you miss (uses a little AI each time).
+        </span>
+      </label>
       {history.length > 0 && (
         <div className="card">
           <h3>Recent results</h3>
@@ -166,6 +186,7 @@ export function ToeflRepeat({ mock }: { mock: boolean }) {
     const a = await mic.listen({ reference: sentence, maxSeconds: REPEAT_SECONDS(sentence), endSilenceMs: 1500, noSpeechMs: REPEAT_SECONDS(sentence) * 1000, record: true });
     acc.current[n] = a;
     setResults([...acc.current]);
+    if (a?.engine === 'azure') app.update((u) => addSoundSamples(u.toefl.sounds, soundSamples(a)));
     if (mock) {
       if (n + 1 < set.sentences.length) item(n + 1);
       else finishSet(acc.current);

@@ -83,6 +83,8 @@ export const SKILL_TASKS: Record<Section, PlanItem[]> = {
     { label: 'Writing: Academic Discussion', to: '/toefl/writing/practice?task=discussion', minutes: 13 },
     { label: 'Writing: your error patterns', to: '/toefl/writing/errors', minutes: 5 },
     { label: 'Writing: phrase bank drill', to: '/toefl/writing/phrases', minutes: 5 },
+    { label: 'Writing: 1-minute essay planner', to: '/toefl/writing/planner', minutes: 12 },
+    { label: 'Writing: email tone trainer', to: '/toefl/writing/tone', minutes: 5 },
   ],
   speaking: [
     { label: 'Speaking: Listen and Repeat', to: '/toefl/repeat', minutes: 5 },
@@ -90,6 +92,7 @@ export const SKILL_TASKS: Record<Section, PlanItem[]> = {
     { label: 'Speaking: long-sentence repeat', to: '/toefl/speaking/long', minutes: 6 },
     { label: 'Speaking: interview topic bank', to: '/toefl/speaking/bank', minutes: 8 },
     { label: 'Speaking: Take an Interview', to: '/toefl/interview', minutes: 6 },
+    { label: 'Speaking: 15-second quick answers', to: '/toefl/speaking/quick', minutes: 3 },
   ],
 };
 
