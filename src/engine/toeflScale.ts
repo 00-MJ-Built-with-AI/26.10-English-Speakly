@@ -32,6 +32,13 @@ export function section30FromBand(section: Section, band: number): number {
   return Math.round((lo + hi) / 2);
 }
 
+/** The comparable 0-120 range of an overall band, e.g. 5.5 -> [107, 113]. */
+export function totalRange(band: number): [number, number] {
+  const i = TOTAL_FLOORS.findIndex(([b]) => b <= band);
+  if (i < 0) return [0, 11];
+  return [TOTAL_FLOORS[i][1], i === 0 ? 120 : TOTAL_FLOORS[i - 1][1] - 1];
+}
+
 export function bandFromTotal(total: number): number {
   return TOTAL_FLOORS.find(([, lo]) => total >= lo)?.[0] ?? 1;
 }
@@ -67,10 +74,17 @@ export function comparableTotal(s: ToeflScore): number {
   return SECTIONS.reduce((a, k) => a + (s.scores30?.[k] ?? section30FromBand(k, s.bands[k])), 0);
 }
 
+/**
+ * KAUST (checked 2026-11-03): its pages still state the old 0-120 scale, 79 on the admissions FAQ and 81
+ * on "Applying to KAUST"; ETS places both in band 4.0 (72-85). Below TOEFL 90 (band 4.5) admitted students
+ * take a mandatory English course. The learner chose a higher goal: 5.5, with 5.0 as the floor.
+ */
 export const KAUST = {
-  /** KAUST's published minimum: TOEFL iBT 79 (0-120). */
-  minimumTotal: 79,
-  /** Our default goal: the minimum plus a safety margin (scores vary between attempts). */
-  defaultTarget: 85,
-  source: 'https://kaust.edu.sa/study/admissions-faqs',
+  publishedTotals: [79, 81],
+  etsBand: 4,
+  englishCourseBelowBand: 4.5,
+  defaultTarget: 5.5,
+  defaultMinimum: 5,
+  source: 'https://www.kaust.edu.sa/en/study/applying-to-kaust',
+  etsGuide: 'https://toeflaccess.ets.org/help/en/articles/12839102-how-to-set-score-requirements-for-the-updated-toefl-scale-1-6',
 };

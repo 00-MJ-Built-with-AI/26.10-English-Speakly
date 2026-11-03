@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ToeflResult } from '../../../shared/tasks.ts';
 import { combineBands, INTERVIEW_SECONDS, INTERVIEW_SETS, REPEAT_SECONDS, REPEAT_SETS, repeatBand, type InterviewSet, type RepeatSet } from '../../content/toefl.ts';
-import { fluencyScore, overallSpeaking, toeflBandOf } from '../../engine/scoring.ts';
+import { fluencyScore } from '../../engine/scoring.ts';
 import { analyzeHesitation, combineHesitation } from '../../engine/hesitation.ts';
 import { wordAccuracy } from '../../engine/text.ts';
 import { aiTask } from '../../lib/api.ts';
@@ -11,89 +11,87 @@ import type { Attempt } from '../../lib/types.ts';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ExamCard } from '../components/ExamCard.tsx';
-import { weakTypes } from '../../engine/toeflPlan.ts';
-import { GapCard } from '../toefl/Scores.tsx';
-
-type IconName = Parameters<typeof Icon>[0]['name'];
+import { analyzeBands, buildPlan, gapSummary, planOffset, weakTypes } from '../../engine/toeflPlan.ts';
+import { skillBand } from '../../engine/toeflSkill.ts';
+import { SECTION_LABELS, SECTIONS, type Section } from '../../engine/toeflScale.ts';
+import { daysUntil } from '../../engine/exam.ts';
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
 const bandText = (b: number | null) => (b == null ? '–' : b.toFixed(1));
 
+/** TOEFL overview: band per skill vs the goal, today's plan, the full mock and score tools. */
 export function ToeflHub() {
   const { user, repo } = useApp();
   const [history, setHistory] = useState<Attempt[]>([]);
   useEffect(() => {
     repo.list<Attempt>('attempts', { limit: 500 }).then((a) => setHistory(a.filter((x) => x.kind === 'toefl')));
   }, [repo]);
-  const overall = overallSpeaking(user);
   const t = user.toefl;
-  const latest = t.scores[0];
-  const lastOfficial = t.scores.find((s) => s.source === 'official');
+  const est = Object.fromEntries(SECTIONS.map((s) => [s, skillBand(t, s, user.toeflBand)])) as Record<Section, ReturnType<typeof skillBand>>;
+  const known = SECTIONS.filter((s) => est[s]);
+  // Unknown skills count as band 4 for planning until there is data.
+  const bands = Object.fromEntries(SECTIONS.map((s) => [s, est[s]?.band ?? 4])) as Record<Section, number>;
+  const gap = analyzeBands(bands, t.target, t.minimum);
+  const daysLeft = user.settings.examDate ? daysUntil(user.settings.examDate) : null;
+  const today = buildPlan(gap, daysLeft != null && daysLeft > 0 ? daysLeft : null, 50, planOffset())[0];
   const weak = weakTypes(t.typeStats);
-  const recentTyping = t.typing.slice(-5);
-  const typingAvg = recentTyping.length ? Math.round(avg(recentTyping)) : null;
-  const tiles: { to: string; icon: IconName; title: string; desc: string }[] = [
-    { to: '/toefl/reading', icon: 'book', title: 'Reading', desc: 'Complete the Words, Daily Life, Academic Passage' },
-    { to: '/toefl/listening', icon: 'ear', title: 'Listening', desc: 'Choose a Response, Conversation, Announcement, Talk' },
-    { to: '/toefl/writing', icon: 'spark', title: 'Writing', desc: 'Build a Sentence, Email, Academic Discussion' },
-    { to: '/toefl/repeat', icon: 'repeat', title: 'Speaking: Listen and Repeat', desc: 'Word-by-word feedback' },
-    { to: '/toefl/interview', icon: 'chat', title: 'Speaking: Take an Interview', desc: 'Band and feedback for every answer' },
-    { to: '/toefl/typing', icon: 'bolt', title: 'Typing practice', desc: typingAvg != null ? `Recent average ${typingAvg} wpm, aim for 35+` : 'No spellcheck or dictation on the test' },
-    { to: '/toefl/scores', icon: 'target', title: 'My scores and plan', desc: lastOfficial ? `Official ${lastOfficial.date}: band ${lastOfficial.overall.toFixed(1)}` : 'Add your result after the exam' },
-    { to: '/toefl/mistakes', icon: 'chart', title: 'Mistake log', desc: weak.length ? `Weakest: ${weak.slice(0, 2).join(', ')}` : 'Accuracy by question type' },
-  ];
   return (
     <div className="stack">
       <h1>TOEFL iBT (2026 format)</h1>
-      {latest ? (
-        <GapCard score={latest} />
-      ) : (
-        <div className="card stack">
-          <h3 style={{ margin: 0 }}>Goal: KAUST</h3>
-          <p style={{ margin: 0 }}>
-            KAUST asks for TOEFL iBT {t.minimum}; your target is <b>{t.target}</b> for a safety margin. Add your score report after the exam, or take a full mock test, to get a
-            section-by-section gap and a daily plan.
-          </p>
-          <a className="btn" href={href('/toefl/scores')} style={{ alignSelf: 'flex-start' }}>
-            <Icon name="target" size={16} /> Add my score
+      <div className="card stack">
+        <div className="spread">
+          <h3 style={{ margin: 0 }}>Goal: band {t.target.toFixed(1)}</h3>
+          <a className="small" href={href('/toefl/scores')}>
+            Scores and goal
           </a>
         </div>
-      )}
+        <div className="grid grid-4">
+          {SECTIONS.map((s) => {
+            const b = est[s]?.band;
+            const g = b != null ? Math.max(0, t.target - b) : null;
+            return (
+              <a key={s} className="soft" href={href(`/toefl/${s}`)} style={{ textDecoration: 'none', color: 'inherit' }}>
+                <div className="small muted">{SECTION_LABELS[s]}</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: g === 0 ? 'var(--good)' : 'var(--brand)' }}>{b != null ? b.toFixed(1) : '–'}</div>
+                <div className="small muted">{g == null ? 'no data yet' : g ? `+${g.toFixed(1)} to go` : 'at target'}</div>
+              </a>
+            );
+          })}
+        </div>
+        <p className="small" style={{ margin: 0 }}>
+          {known.length === 4
+            ? gapSummary(gap)
+            : `Minimum ${t.minimum.toFixed(1)}, target ${t.target.toFixed(1)} in every section. Add your score report, or take a section test or the full mock, to fill in the missing skills.`}
+        </p>
+      </div>
       {t.pendingMock && (
         <div className="banner info">
           A mock test is waiting for its Speaking part. <a href={href('/toefl/full-mock?finish=1')}>Finish it</a>
         </div>
       )}
+      <div className="card stack">
+        <div className="spread">
+          <h3 style={{ margin: 0 }}>Today's TOEFL plan</h3>
+          <span className="chip">{today.items.reduce((a, i) => a + i.minutes, 0)} min</span>
+        </div>
+        {today.items.map((i) => (
+          <a key={i.to} className="list-item" href={href(i.to)} style={{ marginTop: 0 }}>
+            <span className="grow">{i.label}</span>
+            <span className="small muted">{i.minutes} min</span>
+          </a>
+        ))}
+        <div className="small muted">Weighted to the skills furthest from {t.target.toFixed(1)}. Wednesdays add a section test, Saturdays are a full mock.</div>
+      </div>
       <ExamCard history={history} />
       <div className="grid grid-2">
         <button className="btn primary big" onClick={() => go('/toefl/full-mock')}>
           <Icon name="trophy" /> Full mock test (about 75 min)
         </button>
-        <button className="btn big" onClick={() => go('/toefl/mock')}>
-          <Icon name="mic" /> Speaking-only mock (8 min)
-        </button>
-      </div>
-      <div className="grid grid-2">
-        {tiles.map((x) => (
-          <a key={x.to} className="list-item" href={href(x.to)} style={{ marginTop: 0 }}>
-            <span className="icon-tile">
-              <Icon name={x.icon} />
-            </span>
-            <span className="grow">
-              <b>{x.title}</b>
-              <div className="small muted">{x.desc}</div>
-            </span>
-          </a>
-        ))}
-      </div>
-      <div className="card small">
-        <div className="section-title">Speaking estimate</div>
-        <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--brand)' }}>{bandText(user.toeflBand ?? (overall != null ? toeflBandOf(overall) : null))}</span> <span className="muted">/ 6</span>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          The 2026 test has four sections, each scored 1-6 in half bands; the overall band is their average. Score reports also show a comparable 0-120 total, which is what KAUST's {t.minimum} refers to.
-        </p>
+        <a className="btn big" href={href('/toefl/mistakes')}>
+          <Icon name="chart" /> Mistake log{weak.length ? ` (weakest: ${weak[0]})` : ''}
+        </a>
       </div>
       {history.length > 0 && (
         <div className="card">
@@ -396,6 +394,7 @@ export function ToeflInterview({ mock }: { mock: boolean }) {
           u.toeflBand = u.toeflBand == null ? overall : Math.round((u.toeflBand * 0.6 + overall * 0.4) * 2) / 2;
           // Part of a full mock: hand the speaking band back to it.
           if (mock && u.toefl.pendingMock) u.toefl.pendingMock.speakingBand = overall;
+          if (mock) u.toefl.sectionTests = [...u.toefl.sectionTests, { at: Date.now(), section: 'speaking' as const, band: overall }].slice(-100);
         });
       await app.addMistakes(
         scores.flatMap((s) => s?.corrections ?? []).map((c) => ({ kind: c.kind, said: c.original, better: c.corrected, why: c.explanation })),

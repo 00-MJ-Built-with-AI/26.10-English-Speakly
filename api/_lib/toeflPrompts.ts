@@ -1,4 +1,4 @@
-import type { GenKind, ToeflGenInput, WritingInput } from '../../shared/toefl.js';
+import type { GenKind, SpeakCompareInput, ToeflGenInput, WritingInput } from '../../shared/toefl.js';
 
 /** System prompt for writing TOEFL-style practice: original items in the 2026 formats. */
 export const TOEFL_ITEM_SYSTEM = `You write original practice material for the new TOEFL iBT (2026 format) for a learner whose first language is Arabic and who is preparing to study at a graduate university (KAUST). Match the real task formats, lengths and difficulty closely, but never copy or paraphrase real ETS test items. Use American English. Multiple-choice questions have exactly 4 options, one clearly correct answer, and plausible distractors (wrong because of a specific detail, not because they are silly). Vary the position of the correct answer.`;
@@ -30,12 +30,32 @@ const TASK: Record<GenKind, string> = {
     'Task "Write an Email" (Writing): a realistic academic or campus situation where the learner must write an email (to a professor, an office, a classmate or a club) and exactly 3 things the email must do (e.g. explain a problem, ask for something, suggest a solution). The real test allows about 7 minutes.',
   discussion:
     'Task "Write for an Academic Discussion" (Writing): a university course, a professor post that asks an open question (60-90 words), and exactly 2 student posts with different views (40-70 words each, with first names). The learner must contribute their own view in about 100+ words in about 10 minutes.',
+  paraphrase:
+    'Paraphrase drill (Reading skill): 5 items. Each is one academic sentence (18-35 words) and 4 rewordings. Exactly one keeps the full meaning; the others change a cause and effect, a degree (some/all, may/will), the time, or leave out an essential part. Use different words and structures from the original in all options.',
+  vocab:
+    'Academic vocabulary drill: 8 words from the Academic Word List or common in university texts (for example: significant, derive, allocate, hypothesis, subsequent, inherent, comprise, notion), each in a new academic sentence, with its meaning in that context and 4 short meanings to choose from.',
+  spelling:
+    'Word-ending spelling drill for Complete the Words: 8 sentences, each with one word replaced by ____ and its root word as a hint. The answer needs a change of form: -tion/-sion, -ment, -ness, -ity, -ly, -ous/-ive/-al, plural -ies/-es, past -ed with doubling or y->i, third person -s, comparative. Mix them. One short rule each.',
+  dictation:
+    'Dictation drill (Listening): 6 sentences of 8-20 words as people say them on campus or in a lecture, with reduced forms and linking that are hard to catch (going to, want to, have to, linked consonants), numbers or names in some. Each sentence must make sense on its own.',
+  notes:
+    'Note-taking drill (Listening): a lecture of 280-340 words in spoken style (with signposting like "First," "The key point is," "For example") on an introductory university topic, 4-6 key points a good note-taker would write, and 4 questions answerable from good notes (main idea, two details, one relationship such as cause or contrast).',
+  implied:
+    'Implied meaning drill (Listening): 5 short exchanges (2-4 lines) between a woman and a man on campus where the meaning is indirect: a polite refusal, sarcasm, doubt, a hint, a hedge, an idiom. Each with a question about what someone means, implies or feels, 4 options and an explanation that names the clue.',
+  interview:
+    'Speaking "Take an Interview" set with model answers: a topic, a one-sentence intro, 4 questions getting harder (personal experience, then opinion, then a broader social or academic issue), and for each a band 5.5-6 model spoken answer of 80-110 words with a direct answer, a reason, a concrete example and a short wrap-up, in natural spoken English (contractions, signposting).',
+  longRepeat:
+    'Speaking "Listen and Repeat" long-sentence set: a campus setting and 6 sentences of 12-20 words each (getting longer), with clauses and phrases that are natural to say, as a guide or staff member would say them.',
 };
 
 export function toeflGenPrompt(i: ToeflGenInput): string {
   const focus = i.focusType && !['build', 'email', 'discussion', 'complete'].includes(i.kind) ? ` Include at least two "${i.focusType}" questions; the learner needs practice with that type.` : '';
   const topic = i.topic ? ` Topic: ${i.topic}.` : '';
   return `${TASK[i.kind]} ${LEVEL[i.difficulty]}${topic}${focus}`;
+}
+
+export function speakComparePrompt(i: SpeakCompareInput): string {
+  return `TOEFL "Take an Interview" answer (45 seconds; the learner spoke for ${Math.round(i.seconds)} s). Question: "${i.question}"\nTranscript of the learner's spoken answer: "${i.transcript}"\n\nMark which structure parts are really there (a direct answer to the question, a reason, a concrete example, a wrap-up). Then rewrite the learner's own answer at band 5.5: keep their ideas and examples, fix the language, and add whatever part is missing. It will be read aloud, so write natural speech.`;
 }
 
 export function writingPrompt(i: WritingInput): string {

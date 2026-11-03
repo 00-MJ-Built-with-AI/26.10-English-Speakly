@@ -82,6 +82,19 @@
   then the speaking mock; saves an estimated score and compares it with the goal.
 - Mistake log (`/toefl/mistakes`): accuracy by question type, weak types feed the practice sets. 44 unit tests.
 
+## TOEFL per skill (2026-11-03, round 2)
+- Goal on the 1-6 scale: target 5.5, minimum 5.0, for every section (KAUST's pages still say 79/81 on
+  0-120 = ETS band 4.0; below 90 = 4.5 means a mandatory English course). Old 0-120 goals migrate.
+- Overview + tabs for Reading, Listening, Writing, Speaking (`/toefl/{skill}`): band tracker with history
+  and target line (`src/engine/toeflSkill.ts`), section test (`/test`, adaptive), daily 10-min drill
+  (`/drill`, also on Today for the weakest skill), strategy lessons (`/lessons`, 19 types).
+- Reading: academic vocabulary with spaced review, paraphrase matching, speed + comprehension,
+  word-ending spelling. Listening: dictation, note-taking (key points checked), implied meaning, practice
+  speed 0.8/1/1.2x and varied voices. Writing: rewrite and rescore, Build a Sentence grammar patterns,
+  phrase bank + drill, error-pattern tracker. Speaking: structure coach (live cues, band 5.5 rewrite of your
+  own answer via `speakCompare`), interview topic bank with model answers, long-sentence repeat in chunks.
+- Daily plan about 50 minutes, starting today; section test on Wednesdays, full mock on Saturdays. 48 tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.

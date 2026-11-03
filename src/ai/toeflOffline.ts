@@ -95,4 +95,122 @@ export const TOEFL_SAMPLES: { [K in GenKind]: GenOut<K> } = {
       { name: 'Omar', text: 'I prefer paper textbooks. Research suggests students remember more when they read on paper, and tablets can distract students with games and messages.' },
     ],
   },
+  paraphrase: {
+    items: [
+      {
+        sentence: 'Because the new vaccine must be kept at very low temperatures, it has been difficult to deliver to rural clinics that lack reliable electricity.',
+        options: [
+          'Rural clinics have refused the new vaccine because it is too cold.',
+          'Getting the vaccine to rural clinics is hard, since it needs freezing storage that depends on steady power.',
+          'The new vaccine works better in rural areas with reliable electricity.',
+          'Low temperatures in rural areas have made the vaccine difficult to produce.',
+        ],
+        answer: 1,
+        explanation: 'Only B keeps the cause (cold storage) and the effect (hard delivery). A adds a refusal, C changes the claim, D changes delivery to production.',
+      },
+      {
+        sentence: 'Although early critics dismissed the novel as too long, it has since become one of the most widely taught books in American high schools.',
+        options: [
+          'Critics have always praised the novel, which is now taught widely.',
+          'The novel is taught in many schools because critics said it was long.',
+          'Despite first being criticized for its length, the novel is now taught very widely in American high schools.',
+          'Most American high school students find the novel too long.',
+        ],
+        answer: 2,
+        explanation: 'C keeps the contrast. A removes the early criticism, B invents a cause, D is about students, not critics.',
+      },
+      {
+        sentence: 'Some economists argue that a modest increase in the minimum wage may reduce employee turnover without significantly raising unemployment.',
+        options: [
+          'Economists agree that a higher minimum wage will reduce turnover.',
+          'According to some economists, a small rise in the minimum wage could keep workers in their jobs longer while not greatly increasing unemployment.',
+          'A large increase in the minimum wage raises unemployment, some economists argue.',
+          'Raising the minimum wage reduces unemployment, according to economists.',
+        ],
+        answer: 1,
+        explanation: 'B keeps "some", "modest/small", "may/could" and both effects. A says all agree, C says "large", D reverses the unemployment point.',
+      },
+    ],
+  },
+  vocab: {
+    items: [
+      { word: 'allocate', sentence: 'The university decided to allocate more funding to student mental health services.', meaning: 'to give or set aside for a purpose', options: ['to remove', 'to give or set aside for a purpose', 'to delay', 'to measure'], answer: 1 },
+      { word: 'inherent', sentence: 'There are risks inherent in any new medical procedure.', meaning: 'existing as a natural, basic part', options: ['hidden and secret', 'added later', 'existing as a natural, basic part', 'easy to avoid'], answer: 2 },
+      { word: 'subsequent', sentence: 'The first trial failed, but subsequent experiments confirmed the theory.', meaning: 'coming after', options: ['coming after', 'earlier', 'unrelated', 'expensive'], answer: 0 },
+      { word: 'derive', sentence: 'Many English words derive from Latin and Greek.', meaning: 'to come from a source', options: ['to replace', 'to come from a source', 'to translate badly', 'to disappear'], answer: 1 },
+      { word: 'comprise', sentence: 'The committee comprises five professors and two students.', meaning: 'to be made up of', options: ['to argue with', 'to elect', 'to be made up of', 'to exclude'], answer: 2 },
+      { word: 'notion', sentence: 'The notion that the Earth was flat was common in some ancient cultures.', meaning: 'an idea or belief', options: ['a proof', 'an idea or belief', 'a law', 'a map'], answer: 1 },
+    ],
+  },
+  spelling: {
+    items: [
+      { sentence: 'The rapid ____ of new technology has changed how students learn.', base: 'develop', answer: 'development', rule: 'verb + -ment makes a noun; no letter changes.' },
+      { sentence: 'Several ____ have studied the effects of sleep on memory.', base: 'study', answer: 'studies', rule: 'consonant + y: change y to i and add -es.' },
+      { sentence: 'The results were ____ different from what the team expected.', base: 'surprising', answer: 'surprisingly', rule: 'adjective + -ly makes an adverb.' },
+      { sentence: 'The museum ____ the exhibit last month because of repairs.', base: 'stop', answer: 'stopped', rule: 'one vowel + one consonant at the end of a short verb: double it before -ed.' },
+      { sentence: 'Good ____ between team members is essential.', base: 'communicate', answer: 'communication', rule: 'verbs ending in -ate drop the e and add -ion.' },
+      { sentence: 'The ____ of the bridge is about 300 meters.', base: 'long', answer: 'length', rule: 'some adjectives have irregular noun forms (long - length, strong - strength).' },
+    ],
+  },
+  dictation: {
+    items: [
+      { sentence: "I'm going to drop by the registrar's office before my two o'clock class." },
+      { sentence: 'If you want to borrow the lab equipment, you have to sign it out at the front desk.' },
+      { sentence: 'The professor said the midterm would cover chapters three through seven.' },
+      { sentence: 'Could you send me the slides from Tuesday? I missed the first half of the lecture.' },
+      { sentence: 'Most of the energy in this ecosystem comes from tiny organisms near the surface.' },
+    ],
+  },
+  notes: {
+    title: 'Why cities are warmer than the countryside',
+    text: "Today I want to talk about something called the urban heat island effect. Basically, cities tend to be warmer than the rural areas around them, sometimes by three or four degrees, and the difference is biggest at night. So why does this happen? First, materials. Asphalt, concrete and brick absorb a lot of heat from the sun during the day and then release it slowly at night. A field or a forest doesn't store heat in the same way. Second, there's less vegetation in cities. Plants cool the air through a process called evapotranspiration - they release water, and that evaporation takes heat away. Fewer trees means less of that cooling. Third, human activity itself produces heat: cars, air conditioners, factories. Ironically, air conditioners make the outside air even warmer. Now, why does this matter? Well, hotter cities mean more energy use, worse air quality, and real health risks during heat waves, especially for elderly people. The good news is that cities can do something about it. For example, some cities paint roofs white so they reflect sunlight, and others plant trees along streets or build green roofs. Studies in several cities have found that these changes can lower surface temperatures noticeably. So the key point is that the heat island effect is largely caused by how we build cities, which means it can also be reduced by how we build them.",
+    keyPoints: [
+      'Urban heat island: cities warmer than countryside (3-4 degrees), most at night',
+      'Cause 1: asphalt and concrete absorb heat, release it at night',
+      'Cause 2: less vegetation, so less cooling by evapotranspiration',
+      'Cause 3: heat from human activity (cars, AC, factories)',
+      'Effects: energy use, air quality, health risk in heat waves',
+      'Solutions: white roofs, trees, green roofs',
+    ],
+    questions: [
+      { question: 'What is the lecture mainly about?', options: ['How to build air conditioners', 'Why cities are warmer than nearby rural areas and what can be done', 'The history of asphalt', 'Why rural areas are colder at night'], answer: 1, type: 'main-idea', explanation: 'The talk explains causes, effects and solutions of urban heat islands.' },
+      { question: 'When is the temperature difference largest?', options: ['In the morning', 'At noon', 'At night', 'In winter'], answer: 2, type: 'detail', explanation: 'The professor says the difference is biggest at night.' },
+      { question: 'Why does the professor mention air conditioners?', options: ['To show human activity adds heat outside', 'To recommend them for heat waves', 'To explain evapotranspiration', 'To compare cities and forests'], answer: 0, type: 'purpose', explanation: 'They cool inside but warm the outside air.' },
+      { question: 'According to the lecture, how do plants cool the air?', options: ['By blocking wind', 'By releasing water that evaporates', 'By reflecting sunlight', 'By absorbing heat at night'], answer: 1, type: 'detail', explanation: 'Evapotranspiration: released water evaporates and takes heat away.' },
+    ],
+  },
+  implied: {
+    items: [
+      { lines: [{ speaker: 'woman', text: 'Are you coming to the study group tonight?' }, { speaker: 'man', text: "I've got a paper due at nine tomorrow morning." }], question: 'What does the man imply?', options: ['He will come after nine', 'He probably will not come', 'He finished his paper', 'He wants to study the paper together'], answer: 1, explanation: 'He gives a reason he is busy instead of saying no directly.' },
+      { lines: [{ speaker: 'man', text: 'Did you like the new cafeteria menu?' }, { speaker: 'woman', text: "Well, it's certainly... different." }], question: 'How does the woman feel about the menu?', options: ['She loves it', 'She has not tried it', 'She is not impressed', 'She thinks it is cheaper'], answer: 2, explanation: 'The pause and the vague word "different" politely hide a negative opinion.' },
+      { lines: [{ speaker: 'woman', text: 'Professor Kim gave us an extra week for the project.' }, { speaker: 'man', text: "Now that's a relief!" }], question: 'What does the man mean?', options: ['He is worried about the project', 'He is glad about the extension', 'He wants another week', 'He already finished'], answer: 1, explanation: '"That\'s a relief" shows he is happy the pressure is lower.' },
+    ],
+  },
+  interview: {
+    topic: 'Technology and study habits',
+    intro: "Hi, thanks for joining. I'd like to ask you a few questions about technology and studying.",
+    questions: [
+      'What kind of technology do you use most when you study?',
+      'Do you prefer taking notes by hand or on a laptop? Why?',
+      'Some people say smartphones make students less focused. Do you agree?',
+      'Should universities limit the use of AI tools in assignments? Explain your view.',
+    ],
+    models: [
+      "Mostly my laptop, honestly. I use it for reading articles, organizing my notes, and checking my schedule. For example, last semester I kept all my lab reports in one shared folder, so I could find old data really quickly. So for me, the laptop is basically my whole study desk.",
+      "I prefer taking notes by hand. The main reason is that writing slowly forces me to summarize instead of copying every word. For instance, in my statistics class, I wrote short notes and diagrams, and I remembered the formulas much better on the exam. So even though typing is faster, handwriting works better for me.",
+      "I mostly agree. Phones are designed to grab our attention, so even one notification can break your focus for several minutes. I noticed this myself: when I put my phone in another room, I finished a reading assignment in half the time. That said, phones can be useful for quick research, so the key is setting clear limits rather than banning them.",
+      "I think universities should set clear limits, not ban AI completely. On one hand, students need to show their own thinking, especially in writing. On the other hand, AI is going to be part of almost every job. For example, a professor could allow AI for brainstorming but require students to explain their final argument themselves. So the goal should be teaching responsible use.",
+    ],
+  },
+  longRepeat: {
+    topic: 'Campus tour',
+    sentences: [
+      'The main library is open until midnight on weekdays during the semester.',
+      'If you need a quiet place to study, try the reading room on the third floor.',
+      "Students can print up to fifty pages a week for free using their campus ID card.",
+      'The dining hall next to the student center serves breakfast, lunch and dinner every day of the week.',
+      'Before you register for classes, make sure you have met with your academic advisor at least once this term.',
+      'Lost items found anywhere on campus are taken to the security office near the main entrance, where you can collect them with your ID.',
+    ],
+  },
 };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { daysUntil } from '../../engine/exam.ts';
-import { analyzeGap, buildPlan, gapSummary } from '../../engine/toeflPlan.ts';
+import { analyzeGap, buildPlan, gapSummary, planOffset } from '../../engine/toeflPlan.ts';
 import { comparableTotal, KAUST, overallBand, SECTION_LABELS, SECTIONS, type Section, type ToeflScore } from '../../engine/toeflScale.ts';
 import { aiTask } from '../../lib/api.ts';
 import { href } from '../../lib/router.ts';
@@ -216,17 +216,29 @@ export function TargetCard() {
       </div>
       <div className="grid grid-2">
         <label className="field">
-          <span>Your target (0-120)</span>
-          <input type="number" min={0} max={120} value={t.target} onChange={(e) => update((u) => (u.toefl.target = Math.max(0, Math.min(120, Number(e.target.value) || 0))))} />
+          <span>Target band (1-6)</span>
+          <select value={t.target} onChange={(e) => update((u) => (u.toefl.target = Number(e.target.value)))}>
+            {BANDS.map((b) => (
+              <option key={b} value={b}>
+                {b.toFixed(1)}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="field">
-          <span>University minimum (0-120)</span>
-          <input type="number" min={0} max={120} value={t.minimum} onChange={(e) => update((u) => (u.toefl.minimum = Math.max(0, Math.min(120, Number(e.target.value) || 0))))} />
+          <span>Minimum band (1-6)</span>
+          <select value={t.minimum} onChange={(e) => update((u) => (u.toefl.minimum = Number(e.target.value)))}>
+            {BANDS.map((b) => (
+              <option key={b} value={b}>
+                {b.toFixed(1)}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        KAUST lists TOEFL iBT 79 (or IELTS 6.5). On the new 1-6 scale that is between band 4 (72+) and 4.5 (86+); new score reports also show a comparable 0-120 total for two years. The target of {t.target} adds a margin because
-        scores vary between attempts. Check your program's page in case it asks for more.
+        KAUST's pages still give the old 0-120 scale (79 on the FAQ, 81 on "Applying to KAUST"); ETS places both in band 4.0. Below TOEFL 90 (band 4.5),
+        admitted students take a mandatory English course. Your goal of {t.target.toFixed(1)} (minimum {t.minimum.toFixed(1)}) is well above both, for every section.
       </p>
     </div>
   );
@@ -238,7 +250,7 @@ export function GapCard({ score, showPlan = false }: { score: ToeflScore; showPl
   const t = user.toefl;
   const g = analyzeGap(score, t.target, t.minimum);
   const daysLeft = user.settings.examDate ? daysUntil(user.settings.examDate) : null;
-  const plan = showPlan ? buildPlan(g, daysLeft != null && daysLeft > 0 ? daysLeft : null) : [];
+  const plan = showPlan ? buildPlan(g, daysLeft != null && daysLeft > 0 ? daysLeft : null, 50, planOffset()) : [];
   return (
     <div className="card stack">
       <div className="spread">
@@ -257,18 +269,18 @@ export function GapCard({ score, showPlan = false }: { score: ToeflScore; showPl
               <b>{SECTION_LABELS[s.section]}</b> band {score.bands[s.section]}
             </span>
             <span className={s.gap ? 'muted' : ''} style={!s.gap ? { color: 'var(--good)' } : undefined}>
-              {s.now}/30 {s.gap ? `· +${s.gap} to ${s.target}` : '✓'}
+              {s.gap ? `+${s.gap.toFixed(1)} to ${s.target.toFixed(1)}` : '✓ at target'}
             </span>
           </div>
           <div className="bar">
-            <span style={{ width: `${(s.now / 30) * 100}%`, background: s.gap ? undefined : 'var(--good)' }} />
+            <span style={{ width: `${(s.now / 6) * 100}%`, background: s.gap ? undefined : 'var(--good)' }} />
           </div>
         </div>
       ))}
       {showPlan && !g.meetsTarget && (
         <details open>
           <summary>
-            Plan{daysLeft != null && daysLeft > 0 ? ` for the ${Math.min(14, daysLeft)} days before your next exam` : ' for the next two weeks'} (about 25 min a day)
+            Plan{daysLeft != null && daysLeft > 0 ? ` for the ${Math.min(14, daysLeft)} days before your next exam` : ' for the next two weeks'} (about 50 min a day)
           </summary>
           {!user.settings.examDate && (
             <div className="small muted" style={{ margin: '6px 0' }}>

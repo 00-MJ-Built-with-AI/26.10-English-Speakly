@@ -19,11 +19,14 @@ import { Roleplays } from './ui/pages/Roleplays.tsx';
 import { Tutor } from './ui/pages/Tutor.tsx';
 import { Review } from './ui/pages/Review.tsx';
 import { ToeflHub, ToeflRepeat, ToeflInterview } from './ui/pages/Toefl.tsx';
-import { SectionPractice } from './ui/toefl/Practice.tsx';
+import { Drill, SectionPractice } from './ui/toefl/Practice.tsx';
 import { Typing } from './ui/toefl/Typing.tsx';
 import { Scores } from './ui/toefl/Scores.tsx';
 import { Mistakes } from './ui/toefl/Mistakes.tsx';
-import { FullMock } from './ui/toefl/FullMock.tsx';
+import { FullMock, SectionTest } from './ui/toefl/FullMock.tsx';
+import { Lessons, SkillHome, ToeflTabs } from './ui/toefl/Skill.tsx';
+import { DictationPractice, ErrorPatterns, GrammarDrills, ImpliedPractice, NotesPractice, ParaphrasePractice, PhraseBank, SpeedReading, SpellingPractice, VocabTrainer } from './ui/toefl/Tools.tsx';
+import { Coach, LongRepeat, TopicBank } from './ui/toefl/SpeakingTools.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
 import { SettingsPage } from './ui/pages/Settings.tsx';
@@ -245,9 +248,29 @@ function Shell() {
       page = <Tutor query={route.query} />;
       break;
     case 'toefl':
-      if (b === 'reading' || b === 'listening' || b === 'writing') {
+      if (b === 'reading' || b === 'listening' || b === 'writing' || b === 'speaking') {
         const task = route.query.get('task') ?? undefined;
-        page = <SectionPractice key={`${b}-${task}`} section={b} task={task} />;
+        const tool: Record<string, () => ReactNode> = {
+          vocab: () => <VocabTrainer />,
+          paraphrase: () => <ParaphrasePractice />,
+          speed: () => <SpeedReading />,
+          spelling: () => <SpellingPractice />,
+          dictation: () => <DictationPractice />,
+          notes: () => <NotesPractice />,
+          implied: () => <ImpliedPractice />,
+          grammar: () => <GrammarDrills />,
+          phrases: () => <PhraseBank />,
+          errors: () => <ErrorPatterns />,
+          coach: () => <Coach />,
+          bank: () => <TopicBank />,
+          long: () => <LongRepeat />,
+        };
+        if (c === 'lessons') page = <Lessons section={b} />;
+        else if (b !== 'speaking' && (c === 'practice' || (!c && task))) page = <SectionPractice key={`${b}-${task}`} section={b} task={task} />;
+        else if (b !== 'speaking' && c === 'test') page = <SectionTest key={b} section={b} />;
+        else if (b !== 'speaking' && c === 'drill') page = <Drill key={b} section={b} />;
+        else if (c && tool[c]) page = tool[c]();
+        else page = <SkillHome section={b} />;
       } else if (b === 'typing') page = <Typing />;
       else if (b === 'scores') page = <Scores />;
       else if (b === 'mistakes') page = <Mistakes />;
@@ -255,6 +278,12 @@ function Shell() {
         const finish = route.query.get('finish') === '1';
         page = <FullMock key={String(finish)} finish={finish} />;
       } else page = b === 'repeat' ? <ToeflRepeat mock={false} /> : b === 'interview' ? <ToeflInterview mock={false} /> : b === 'mock' ? <ToeflRepeat mock /> : b === 'mock-interview' ? <ToeflInterview mock /> : <ToeflHub />;
+      page = (
+        <>
+          <ToeflTabs active={b} />
+          {page}
+        </>
+      );
       break;
     case 'progress':
       page = <ProgressPage />;

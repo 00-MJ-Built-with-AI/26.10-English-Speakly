@@ -37,8 +37,8 @@ import {
 } from '../shared/tasks.js';
 import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
 import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.js';
-import { GEN, ScoreReport, WritingScore, type ScoreReportInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
-import { TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
+import { GEN, ScoreReport, SpeakCompare, WritingScore, type ScoreReportInput, type SpeakCompareInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
+import { speakComparePrompt, TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
 
 const MODEL = process.env.TUTOR_MODEL || 'claude-opus-5-5';
 /** Anthropic picks a fallback model if a request is declined by a safety classifier. */
@@ -202,6 +202,7 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
     return structured(schema as z.ZodType, toeflGenPrompt(i), 'low', TOEFL_ITEM_SYSTEM);
   },
   toeflWrite: (i: WritingInput) => structured(WritingScore, writingPrompt(i), 'medium'),
+  speakCompare: (i: SpeakCompareInput) => structured(SpeakCompare, speakComparePrompt(i), 'medium'),
   scoreReport: (i: ScoreReportInput) =>
     structured(
       ScoreReport,

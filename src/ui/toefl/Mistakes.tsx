@@ -5,18 +5,24 @@ import { useApp } from '../../lib/store.tsx';
 
 /** What each tracked question type is, and where to practise it. */
 const TYPE_INFO: Record<string, { label: string; tip: string; to: string }> = {
-  'main-idea': { label: 'Main idea', tip: 'Read the first and last sentence of each paragraph before the details. The right answer covers the whole text, not one part.', to: '/toefl/reading?task=academic' },
-  detail: { label: 'Detail', tip: 'Find the exact sentence in the text. Wrong options often reuse words from the text but change the meaning.', to: '/toefl/reading?task=daily' },
-  inference: { label: 'Inference', tip: 'The answer is not stated but must be true from the text. Reject options that need outside knowledge or go too far.', to: '/toefl/reading?task=academic' },
-  vocabulary: { label: 'Vocabulary in context', tip: 'Replace the word with each option and reread the sentence. Pick the meaning that fits this context, not the most common one.', to: '/toefl/reading?task=academic' },
-  purpose: { label: 'Purpose', tip: 'Ask why the writer or speaker included this: to give an example, contrast, explain a cause, or make a request.', to: '/toefl/listening?task=talk' },
-  organization: { label: 'Organization', tip: 'Notice signal words (however, as a result, for example) and how the parts connect.', to: '/toefl/listening?task=talk' },
-  attitude: { label: 'Speaker attitude', tip: 'Listen to tone and hedges like "I suppose" or "actually". Attitude is often in how something is said.', to: '/toefl/listening?task=conversation' },
-  response: { label: 'Choose a response', tip: 'Pick the reply a person would really say. Watch for options that repeat words from the prompt but do not answer it.', to: '/toefl/listening?task=response' },
-  'complete-words': { label: 'Complete the Words', tip: 'Use grammar first (plural, past tense, part of speech), then meaning. Spelling must be exact, so build accuracy with typing practice.', to: '/toefl/reading?task=complete' },
-  'build-sentence': { label: 'Build a Sentence', tip: 'Find the subject and verb first, then attach phrases. Questions and indirect questions have different word order.', to: '/toefl/writing?task=build' },
-  email: { label: 'Write an Email', tip: 'Cover all three points, use a polite opening and closing, and keep the tone right for the reader.', to: '/toefl/writing?task=email' },
-  discussion: { label: 'Academic Discussion', tip: 'State your view in the first sentence, add a reason and an example, and refer to one classmate’s idea.', to: '/toefl/writing?task=discussion' },
+  'main-idea': { label: 'Main idea', tip: 'Read the first and last sentence of each paragraph before the details. The right answer covers the whole text, not one part.', to: '/toefl/reading/practice?task=academic' },
+  detail: { label: 'Detail', tip: 'Find the exact sentence in the text. Wrong options often reuse words from the text but change the meaning.', to: '/toefl/reading/practice?task=daily' },
+  inference: { label: 'Inference', tip: 'The answer is not stated but must be true from the text. Reject options that need outside knowledge or go too far.', to: '/toefl/reading/practice?task=academic' },
+  vocabulary: { label: 'Vocabulary in context', tip: 'Replace the word with each option and reread the sentence. Pick the meaning that fits this context, not the most common one.', to: '/toefl/reading/practice?task=academic' },
+  purpose: { label: 'Purpose', tip: 'Ask why the writer or speaker included this: to give an example, contrast, explain a cause, or make a request.', to: '/toefl/listening/practice?task=talk' },
+  organization: { label: 'Organization', tip: 'Notice signal words (however, as a result, for example) and how the parts connect.', to: '/toefl/listening/practice?task=talk' },
+  attitude: { label: 'Speaker attitude', tip: 'Listen to tone and hedges like "I suppose" or "actually". Attitude is often in how something is said.', to: '/toefl/listening/practice?task=conversation' },
+  response: { label: 'Choose a response', tip: 'Pick the reply a person would really say. Watch for options that repeat words from the prompt but do not answer it.', to: '/toefl/listening/practice?task=response' },
+  'complete-words': { label: 'Complete the Words', tip: 'Use grammar first (plural, past tense, part of speech), then meaning. Spelling must be exact, so build accuracy with typing practice.', to: '/toefl/reading/practice?task=complete' },
+  'build-sentence': { label: 'Build a Sentence', tip: 'Find the subject and verb first, then attach phrases. Questions and indirect questions have different word order.', to: '/toefl/writing/practice?task=build' },
+  email: { label: 'Write an Email', tip: 'Cover all three points, use a polite opening and closing, and keep the tone right for the reader.', to: '/toefl/writing/practice?task=email' },
+  paraphrase: { label: 'Paraphrase', tip: 'Check who does what and why, and the small words: some/all, may/will, not.', to: '/toefl/reading/paraphrase' },
+  spelling: { label: 'Word endings', tip: 'Learn the patterns: y to ies, doubling before -ed, -ate to -ation.', to: '/toefl/reading/spelling' },
+  dictation: { label: 'Dictation', tip: 'Listen for small words and endings; replay at 0.8x first, then 1x.', to: '/toefl/listening/dictation' },
+  implied: { label: 'Implied meaning', tip: 'A reason instead of yes/no usually means no; listen to tone.', to: '/toefl/listening/implied' },
+  'note-taking': { label: 'Note-taking', tip: 'One line per signposted point, short forms, examples in 2-3 words.', to: '/toefl/listening/notes' },
+  phrases: { label: 'Phrase choice', tip: 'Match the phrase to the job: request, explanation, agreement, example.', to: '/toefl/writing/phrases' },
+  discussion: { label: 'Academic Discussion', tip: 'State your view in the first sentence, add a reason and an example, and refer to one classmate’s idea.', to: '/toefl/writing/practice?task=discussion' },
 };
 
 /** Accuracy by question type, weakest first, with a tip and a link to practise each. */

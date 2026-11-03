@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeGap, buildPlan, weakTypes } from '../src/engine/toeflPlan.ts';
-import { bandFromSection30, bandFromTotal, comparableTotal, overallBand, section30FromBand, type ToeflScore } from '../src/engine/toeflScale.ts';
+import { practiceBand, skillBand, weakestSkill } from '../src/engine/toeflSkill.ts';
+import { bandFromSection30, bandFromTotal, comparableTotal, overallBand, section30FromBand, totalRange, type ToeflScore } from '../src/engine/toeflScale.ts';
 
 const score = (bands: ToeflScore['bands'], scores30?: ToeflScore['scores30'], total?: number): ToeflScore => ({
   id: 'x',
   at: 0,
-  date: '2026-11-20',
+  date: '2026-10-20',
   source: 'official',
   overall: overallBand(bands),
   bands,
@@ -33,27 +34,62 @@ describe('TOEFL scale (ETS concordance)', () => {
   });
 });
 
-describe('KAUST gap plan', () => {
-  it('finds the sections furthest below an even share of the target', () => {
-    const s = score({ reading: 5, listening: 4.5, writing: 3.5, speaking: 3.5 }, { reading: 25, listening: 21, writing: 15, speaking: 18 });
-    const g = analyzeGap(s, 85, 79);
-    expect(g.total).toBe(79);
+describe('KAUST gap plan (1-6 bands)', () => {
+  const s = score({ reading: 5.5, listening: 5, writing: 4, speaking: 4.5 });
+  it('finds the sections furthest below the target band', () => {
+    const g = analyzeGap(s, 5.5, 5);
+    expect(g.overall).toBe(5);
     expect(g.meetsMinimum).toBe(true);
     expect(g.meetsTarget).toBe(false);
     expect(g.focus.slice(0, 2)).toEqual(['writing', 'speaking']);
-    expect(g.sections.find((x) => x.section === 'writing')?.gap).toBe(7);
+    expect(g.sections.find((x) => x.section === 'writing')?.gap).toBe(1.5);
+    expect(g.sections.find((x) => x.section === 'reading')?.gap).toBe(0);
+    expect(totalRange(5.5)).toEqual([107, 113]);
+    expect(totalRange(6)).toEqual([114, 120]);
   });
-  it('builds daily plans weighted to the gaps, with mocks and a rest day', () => {
-    const s = score({ reading: 5, listening: 4.5, writing: 3.5, speaking: 3.5 }, { reading: 25, listening: 21, writing: 15, speaking: 18 });
-    const plan = buildPlan(analyzeGap(s, 85, 79), 10);
+  it('builds 50-minute days weighted to the gaps, with a section test, a mock and a rest day', () => {
+    const plan = buildPlan(analyzeGap(s, 5.5, 5), 10);
     expect(plan).toHaveLength(10);
+    expect(plan[3].items[0].label).toBe('Writing section test');
     expect(plan[6].items[0].label).toMatch(/mock/i);
     expect(plan[9].items[0].label).toMatch(/rest/i);
-    const writing = plan.flatMap((d) => d.items).filter((i) => i.label.startsWith('Writing')).length;
-    const reading = plan.flatMap((d) => d.items).filter((i) => i.label.startsWith('Reading')).length;
-    expect(writing).toBeGreaterThan(reading);
+    for (const d of [plan[0], plan[1], plan[4]]) expect(d.items.reduce((a, i) => a + i.minutes, 0)).toBeGreaterThanOrEqual(45);
+    const items = plan.flatMap((d) => d.items);
+    expect(items.filter((i) => i.label.startsWith('Writing')).length).toBeGreaterThan(items.filter((i) => i.label.startsWith('Reading')).length);
   });
   it('lists weak question types', () => {
     expect(weakTypes({ inference: { right: 2, total: 6 }, detail: { right: 5, total: 6 }, vocab: { right: 0, total: 2 } })).toEqual(['inference']);
+  });
+});
+
+describe('skill band estimate', () => {
+  const log = (section: 'reading' | 'listening', at: number, points: number, max: number) => ({ at, section, points, max });
+  it('needs three practice results and maps the share to a band', () => {
+    expect(practiceBand([log('reading', 1, 5, 5)], 'reading')).toBeNull();
+    const p = practiceBand([log('reading', 1, 4, 5), log('reading', 2, 4, 5), log('reading', 3, 4, 5), log('listening', 4, 0, 5)], 'reading');
+    expect(p?.band).toBe(5); // 80% -> 24/30, the Reading 5.0 floor
+  });
+  it('uses the latest test and blends in newer practice', () => {
+    const T = Date.parse('2026-12-01');
+    const d = { scores: [score({ reading: 4, listening: 4, writing: 4, speaking: 4 })], log: [] as ReturnType<typeof log>[], sectionTests: [{ at: T, section: 'reading' as const, band: 5 }] };
+    expect(skillBand(d, 'reading')?.band).toBe(5);
+    expect(skillBand(d, 'listening')?.band).toBe(4);
+    d.log = [log('reading', T + 1, 1, 1), log('reading', T + 2, 1, 1), log('reading', T + 3, 1, 1)];
+    expect(skillBand(d, 'reading')?.band).toBe(5.5);
+    expect(skillBand(d, 'speaking', 5)?.band).toBe(4.5);
+  });
+});
+
+describe('plan offset and weakest skill', () => {
+  it('moves the weekly mock with the day offset', () => {
+    const g = analyzeGap(score({ reading: 5.5, listening: 5, writing: 4, speaking: 4.5 }), 5.5, 5);
+    const plan = buildPlan(g, null, 50, 3);
+    expect(plan[3].items[0].label).toMatch(/mock/i);
+    expect(plan[0].items[0].label).toBe('Writing section test');
+  });
+  it('picks the skill with the lowest band, unknown counting as 4', () => {
+    const toefl = { scores: [score({ reading: 5, listening: 5, writing: 4.5, speaking: 5 })], log: [], sectionTests: [], target: 5.5 };
+    expect(weakestSkill({ toefl, toeflBand: null })).toBe('writing');
+    expect(weakestSkill({ toefl: { ...toefl, scores: [] }, toeflBand: 5 })).toBe('writing');
   });
 });

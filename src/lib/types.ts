@@ -131,9 +131,9 @@ export function emptyUser(name = ''): UserDoc {
 }
 
 export interface ToeflData {
-  /** Goal on the comparable 0-120 scale (KAUST minimum plus a margin). */
+  /** Goal band on the 1-6 scale, for the overall score and every section. */
   target: number;
-  /** The university's published minimum (KAUST: 79). */
+  /** Lowest acceptable band (1-6). */
   minimum: number;
   /** Official results (from score report photos) and full mock estimates, newest first. */
   scores: ToeflScore[];
@@ -143,13 +143,32 @@ export interface ToeflData {
   sectionStats: Partial<Record<Section, { points: number; max: number }>>;
   /** Recent typing speeds (words per minute). */
   typing: number[];
-  /** Reading/Listening/Writing results waiting for the speaking part of a full mock. */
   /** A full mock between its written part and the speaking part. */
   pendingMock?: { at: number; scores30: Partial<Record<Section, number>>; speakingBand?: number };
+  /** Recent practice results (newest last, capped), for the per-skill band estimate. */
+  log: { at: number; section: Section; kind: string; points: number; max: number }[];
+  /** Results of single-section tests (newest last). */
+  sectionTests: { at: number; section: Section; band: number; score30?: number }[];
+  /** Academic vocabulary in spaced repetition: box 0-5 and when it is due again. */
+  vocab: Record<string, { meaning: string; sentence: string; box: number; due: number }>;
+  /** Mistakes from scored writing, drilled until fixed twice. */
+  writeErrors: { at: number; kind: string; original: string; corrected: string; explanation: string; fixed: number }[];
+  /** Practice audio speed and voice for Listening (the real test is 1x, one voice per speaker). */
+  listenRate: number;
+  /** 'varied' picks different voices for each practice set. */
+  listenVoices: 'standard' | 'varied';
 }
 
 export function emptyToefl(): ToeflData {
-  return { target: 85, minimum: 79, scores: [], typeStats: {}, sectionStats: {}, typing: [] };
+  return { target: 5.5, minimum: 5, scores: [], typeStats: {}, sectionStats: {}, typing: [], log: [], sectionTests: [], vocab: {}, writeErrors: [], listenRate: 1, listenVoices: 'standard' };
+}
+
+/** The goal used to be on the 0-120 scale; it is now a 1-6 band. */
+function migrateToefl(t: Partial<ToeflData> | undefined): ToeflData {
+  const out = { ...emptyToefl(), ...t };
+  if (out.target > 6) out.target = 5.5;
+  if (out.minimum > 6) out.minimum = 5;
+  return out;
 }
 
 /** Fills in fields added after a user document was first saved. */
@@ -164,7 +183,7 @@ export function migrateUser(u: UserDoc): UserDoc {
     usage: u.usage ?? {},
     onboarded: u.onboarded ?? false,
     twisters: u.twisters ?? {},
-    toefl: { ...emptyToefl(), ...u.toefl },
+    toefl: migrateToefl(u.toefl),
     // The first default voice was the standard Ava; move to the more natural HD Ava.
     settings: { ...DEFAULT_SETTINGS, ...u.settings, rates: { ...DEFAULT_SETTINGS.rates, ...u.settings?.rates }, voice: u.settings?.voice === 'en-US-AvaMultilingualNeural' ? DEFAULT_VOICE : (u.settings?.voice ?? DEFAULT_VOICE) },
   };

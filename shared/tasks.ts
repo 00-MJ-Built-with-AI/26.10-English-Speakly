@@ -3,7 +3,7 @@
  * Shared by the browser (types, offline stand-ins) and the server (prompts, structured output).
  */
 import { z } from 'zod';
-import type { GenKind, GenOut, ScoreReport, ScoreReportInput, ToeflGenInput, WritingInput, WritingScore } from './toefl.js';
+import type { GenKind, GenOut, ScoreReport, ScoreReportInput, SpeakCompare, SpeakCompareInput, ToeflGenInput, WritingInput, WritingScore } from './toefl.js';
 
 export const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 export type Level = (typeof LEVELS)[number];
@@ -302,6 +302,7 @@ export interface TaskMap {
   toeflGen: [ToeflGenInput, GenOut<GenKind>];
   toeflWrite: [WritingInput, WritingScore];
   scoreReport: [ScoreReportInput, ScoreReport];
+  speakCompare: [SpeakCompareInput, SpeakCompare];
   check: [CheckInput, CheckResult];
   report: [ReportInput, ReportResult];
   grade: [GradeInput, GradeResult];

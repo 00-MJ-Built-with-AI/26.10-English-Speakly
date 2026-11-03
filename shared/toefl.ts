@@ -59,6 +59,63 @@ export const GEN = {
     professor: z.string().describe("The professor's post with a question, 60-90 words"),
     posts: z.array(z.object({ name: z.string(), text: z.string().describe('40-70 words') })).describe('Exactly 2 student posts with different views'),
   }),
+  // Skill drills (not test tasks themselves).
+  paraphrase: z.object({
+    items: z.array(
+      z.object({
+        sentence: z.string().describe('An academic sentence of 18-35 words'),
+        options: z.array(z.string()).describe('4 rewordings; exactly one keeps the full meaning'),
+        answer: z.number(),
+        explanation: z.string().describe('What the wrong options change or leave out'),
+      }),
+    ),
+  }),
+  vocab: z.object({
+    items: z.array(
+      z.object({
+        word: z.string(),
+        sentence: z.string().describe('An academic sentence that uses the word exactly as written'),
+        meaning: z.string().describe('Short plain-English meaning in this context'),
+        options: z.array(z.string()).describe('4 short meanings; one is right'),
+        answer: z.number(),
+      }),
+    ),
+  }),
+  spelling: z.object({
+    items: z.array(
+      z.object({
+        sentence: z.string().describe('A sentence with the target word replaced by ____'),
+        base: z.string().describe('The root word given as a hint, e.g. "develop"'),
+        answer: z.string().describe('The exact word that fits, e.g. "development"'),
+        rule: z.string().describe('The spelling or grammar point in one short sentence'),
+      }),
+    ),
+  }),
+  dictation: z.object({ items: z.array(z.object({ sentence: z.string().describe('8-20 words, natural spoken campus or lecture English') })) }),
+  notes: z.object({
+    title: z.string(),
+    text: z.string().describe('A lecture of 280-340 words, spoken style'),
+    keyPoints: z.array(z.string()).describe('4-6 points a good note-taker would write down, in order'),
+    questions: z.array(Question),
+  }),
+  implied: z.object({
+    items: z.array(
+      z.object({
+        lines: z.array(z.object({ speaker: z.enum(['woman', 'man']), text: z.string() })).describe('2-4 short lines'),
+        question: z.string().describe('About what a speaker means, implies or feels'),
+        options: z.array(z.string()),
+        answer: z.number(),
+        explanation: z.string(),
+      }),
+    ),
+  }),
+  interview: z.object({
+    topic: z.string(),
+    intro: z.string().describe('One sentence the interviewer says first'),
+    questions: z.array(z.string()).describe('Exactly 4, getting harder: personal, then opinion, then a broader issue'),
+    models: z.array(z.string()).describe('A band 5.5-6 spoken answer to each question, 80-110 words, natural and structured: answer, reason, example, wrap-up'),
+  }),
+  longRepeat: z.object({ topic: z.string(), sentences: z.array(z.string()).describe('6 sentences of 12-20 words, campus life') }),
 };
 
 export type GenKind = keyof typeof GEN;
@@ -71,6 +128,19 @@ export interface ToeflGenInput {
   /** A question type to include more of (from the mistake log). */
   focusType?: QuestionType;
   topic?: string;
+}
+
+/** "Compare with a band 5.5 answer" and the structure coach, for one interview answer. */
+export const SpeakCompare = z.object({
+  structure: z.object({ answer: z.boolean(), reason: z.boolean(), example: z.boolean(), wrapUp: z.boolean() }).describe('Which parts are really present'),
+  improved: z.string().describe("The learner's own answer rewritten at band 5.5: same ideas, better language and structure, 80-110 words, natural speech"),
+  changes: z.array(z.string()).describe('2-4 specific differences that raise the band'),
+});
+export type SpeakCompare = z.infer<typeof SpeakCompare>;
+export interface SpeakCompareInput {
+  question: string;
+  transcript: string;
+  seconds: number;
 }
 
 export const WritingScore = z.object({

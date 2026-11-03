@@ -264,6 +264,15 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         model: '(Test mode) A model answer appears with the AI key.',
       } as TaskMap[K][1];
     }
+    case 'speakCompare': {
+      const t = String(i.transcript ?? '').toLowerCase();
+      const has = (re: RegExp) => re.test(t);
+      return {
+        structure: { answer: countWords(t) > 5, reason: has(/because|since|the reason|so that/), example: has(/for example|for instance|like when|once|last (week|year|semester)/), wrapUp: has(/so overall|that's why|in short|so for me|overall/) },
+        improved: '(Test mode) A band 5.5 version of your answer appears here once the AI key is added. Shape to aim for: direct answer, because..., for example..., so overall...',
+        changes: ['(Test mode) Structure is found by key phrases only.'],
+      } as TaskMap[K][1];
+    }
     case 'scoreReport':
       return {
         found: false,

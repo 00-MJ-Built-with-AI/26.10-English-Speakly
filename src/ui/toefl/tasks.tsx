@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GenKind, GenOut, Question, WritingScore } from '../../../shared/toefl.ts';
 import { aiTask } from '../../lib/api.ts';
 import { useApp } from '../../lib/store.tsx';
-import { countWords } from '../../engine/text.ts';
+import { align, countWords, words as splitWords } from '../../engine/text.ts';
 import { Icon } from '../components/Icon.tsx';
 
 /** What a finished task reports: points, and right/wrong per question type for the mistake log. */
@@ -11,6 +11,8 @@ export interface TaskOutcome {
   max: number;
   marks: { type: string; correct: boolean }[];
   writing?: WritingScore;
+  /** A rewrite of an already scored answer: not counted again in the stats. */
+  revision?: boolean;
 }
 
 export type Mode = 'practice' | 'mock';
@@ -142,25 +144,36 @@ export function CompleteWords({ data, mode, onSubmit }: { data: GenOut<'complete
   );
 }
 
-/** Plays listening audio with a limit on replays (once in a mock, twice in practice). */
-function usePlayer(mode: Mode) {
+const VOICES = {
+  woman: ['en-US-Ava:DragonHDLatestNeural', 'en-US-Emma:DragonHDLatestNeural', 'en-US-JennyNeural', 'en-US-AriaNeural'],
+  man: ['en-US-Andrew:DragonHDLatestNeural', 'en-US-Brian:DragonHDLatestNeural', 'en-US-GuyNeural', 'en-US-DavisNeural'],
+};
+
+/**
+ * Plays listening audio with a limit on replays (once in a mock, twice in practice). In practice the
+ * learner's speed and voice settings apply; a mock always plays at normal speed.
+ */
+export function usePlayer(mode: Mode, practiceLimit = 2) {
   const { engine, user } = useApp();
   const [plays, setPlays] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const limit = mode === 'mock' ? 1 : 2;
-  const voices = { woman: 'en-US-Ava:DragonHDLatestNeural', man: 'en-US-Andrew:DragonHDLatestNeural' } as const;
+  const limit = mode === 'mock' ? 1 : practiceLimit;
+  const varied = mode === 'practice' && user.toefl.listenVoices === 'varied';
+  const [pick] = useState(() => (varied ? { woman: 1 + Math.floor(Math.random() * 3), man: 1 + Math.floor(Math.random() * 3), narrator: Math.random() < 0.5 } : { woman: 0, man: 0, narrator: false }));
+  const narrator = varied ? (pick.narrator ? VOICES.man[pick.man] : VOICES.woman[pick.woman]) : user.settings.voice;
   async function play(lines: { text: string; speaker?: 'woman' | 'man' }[]) {
     if (playing || plays >= limit) return;
     setPlaying(true);
     setPlays((n) => n + 1);
-    for (const l of lines) await engine.speak(l.text, { voice: l.speaker ? voices[l.speaker] : user.settings.voice, browserVoice: user.settings.browserVoice, rate: 1 });
+    const rate = mode === 'practice' ? user.toefl.listenRate : 1;
+    for (const l of lines) await engine.speak(l.text, { voice: l.speaker ? VOICES[l.speaker][pick[l.speaker]] : narrator, browserVoice: user.settings.browserVoice, rate });
     setPlaying(false);
   }
   useEffect(() => () => engine.stopSpeaking(), [engine]);
   return { play, plays, playing, limit, canPlay: plays < limit && !playing };
 }
 
-function PlayButton({ p, onPlay, label = 'Listen' }: { p: ReturnType<typeof usePlayer>; onPlay: () => void; label?: string }) {
+export function PlayButton({ p, onPlay, label = 'Listen' }: { p: ReturnType<typeof usePlayer>; onPlay: () => void; label?: string }) {
   return (
     <div className="row">
       <button className="btn" onClick={onPlay} disabled={!p.canPlay}>
@@ -365,6 +378,7 @@ export function WritingTask({
   const [left, setLeft] = useState(minutes * 60);
   const [state, setState] = useState<'writing' | 'scoring' | 'done'>('writing');
   const [score, setScore] = useState<WritingScore | null>(null);
+  const [before, setBefore] = useState<WritingScore | null>(null);
   const [error, setError] = useState<string | null>(null);
   const start = useRef(Date.now());
   const firstKey = useRef<number | null>(null);
@@ -389,7 +403,7 @@ export function WritingTask({
       const s = await aiTask('toeflWrite', { task: kind, prompt: data, text: textRef.current, minutes: Math.round(used * 10) / 10 });
       setScore(s);
       setState('done');
-      onSubmit({ points: s.score, max: 5, marks: [{ type: kind === 'email' ? 'email' : 'discussion', correct: s.score >= 4 }], writing: s });
+      onSubmit({ points: s.score, max: 5, marks: [{ type: kind === 'email' ? 'email' : 'discussion', correct: s.score >= 4 }], writing: s, revision: before != null });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setState('writing');
@@ -458,7 +472,30 @@ export function WritingTask({
         </button>
       )}
       {state === 'scoring' && <div className="muted">Scoring with the TOEFL rubric…</div>}
-      {score && mode === 'practice' && <WritingFeedback s={score} />}
+      {score && mode === 'practice' && (
+        <>
+          {before && (
+            <div className={`banner ${score.score > before.score ? 'info' : ''}`}>
+              Rewrite: {before.score.toFixed(1)} → <b>{score.score.toFixed(1)}</b>
+              {score.score > before.score ? ' — better.' : score.score < before.score ? ' — lower; compare the feedback.' : ' — same band.'}
+            </div>
+          )}
+          <WritingFeedback s={score} />
+          <button
+            className="btn"
+            style={{ alignSelf: 'flex-start' }}
+            onClick={() => {
+              setBefore(score);
+              setScore(null);
+              start.current = Date.now();
+              setLeft(minutes * 60);
+              setState('writing');
+            }}
+          >
+            <Icon name="refresh" size={16} /> Rewrite with the feedback and rescore
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -528,5 +565,329 @@ export function TaskView({ kind, data, mode, onSubmit }: { kind: GenKind; data: 
     case 'email':
     case 'discussion':
       return <WritingTask kind={kind} data={data as GenOut<'email'>} mode={mode} onSubmit={onSubmit} />;
+    case 'paraphrase':
+      return (
+        <ChoiceItems
+          type="paraphrase"
+          mode={mode}
+          onSubmit={onSubmit}
+          items={(data as GenOut<'paraphrase'>).items.map((it) => ({
+            stem: (
+              <>
+                <div className="small muted">Which sentence keeps the full meaning?</div>
+                <div className="soft" style={{ lineHeight: 1.6 }}>
+                  {it.sentence}
+                </div>
+              </>
+            ),
+            options: it.options,
+            answer: it.answer,
+            explanation: it.explanation,
+          }))}
+        />
+      );
+    case 'vocab':
+      return (
+        <ChoiceItems
+          type="vocabulary"
+          mode={mode}
+          onSubmit={onSubmit}
+          items={(data as GenOut<'vocab'>).items.map((it) => ({
+            stem: (
+              <>
+                <div className="soft" style={{ lineHeight: 1.6 }}>
+                  {highlight(it.sentence, it.word)}
+                </div>
+                <div className="small muted">
+                  What does <b>{it.word}</b> mean here?
+                </div>
+              </>
+            ),
+            options: it.options,
+            answer: it.answer,
+            explanation: `${it.word}: ${it.meaning}`,
+          }))}
+        />
+      );
+    case 'implied':
+      return (
+        <ChoiceItems
+          type="implied"
+          mode={mode}
+          onSubmit={onSubmit}
+          items={(data as GenOut<'implied'>).items.map((it) => ({
+            stem: <div className="small muted">{it.question}</div>,
+            audio: it.lines,
+            options: it.options,
+            answer: it.answer,
+            explanation: `${it.lines.map((l) => `${l.speaker === 'woman' ? 'W' : 'M'}: ${l.text}`).join(' / ')} — ${it.explanation}`,
+          }))}
+        />
+      );
+    case 'spelling':
+      return <SpellingItems data={data as GenOut<'spelling'>} mode={mode} onSubmit={onSubmit} />;
+    case 'dictation':
+      return <DictationItems data={data as GenOut<'dictation'>} mode={mode} onSubmit={onSubmit} />;
+    case 'notes':
+      return <NotesTask data={data as GenOut<'notes'>} mode={mode} onSubmit={onSubmit} />;
+    default:
+      return null;
   }
+}
+
+/** Shows `word` in bold inside a sentence. */
+function highlight(sentence: string, word: string): ReactNode {
+  const at = sentence.toLowerCase().indexOf(word.toLowerCase());
+  if (at < 0) return sentence;
+  return (
+    <>
+      {sentence.slice(0, at)}
+      <b style={{ color: 'var(--brand)' }}>{sentence.slice(at, at + word.length)}</b>
+      {sentence.slice(at + word.length)}
+    </>
+  );
+}
+
+interface ChoiceItem {
+  stem: ReactNode;
+  /** Played before the options appear (listening items). */
+  audio?: { text: string; speaker?: 'woman' | 'man' }[];
+  options: string[];
+  answer: number;
+  explanation: string;
+}
+
+/** One multiple-choice item at a time (paraphrase, vocabulary, implied meaning). */
+export function ChoiceItems({ items, type, mode, onSubmit }: { items: ChoiceItem[]; type: string; mode: Mode; onSubmit: (o: TaskOutcome) => void }) {
+  const [i, setI] = useState(0);
+  const [picked, setPicked] = useState<(number | null)[]>(() => items.map(() => null));
+  const [shown, setShown] = useState(false);
+  const item = items[i];
+  useEffect(() => setShown(false), [i]);
+  function next() {
+    if (i + 1 < items.length) setI(i + 1);
+    else {
+      const marks = items.map((it, k) => ({ type, correct: picked[k] === it.answer }));
+      onSubmit({ points: marks.filter((m) => m.correct).length, max: marks.length, marks });
+      setI(items.length);
+    }
+  }
+  if (!item) return <div className="muted">Done.</div>;
+  return (
+    <div className="stack">
+      <div className="small muted">
+        Item {i + 1} of {items.length}
+      </div>
+      {item.audio && <LinesPlayer key={i} mode={mode} lines={item.audio} />}
+      {item.stem}
+      {item.options.map((o, k) => {
+        const reveal = shown && mode === 'practice';
+        const cls = reveal ? (k === item.answer ? 'good' : picked[i] === k ? 'bad' : '') : picked[i] === k ? 'brand' : '';
+        return (
+          <button
+            key={k}
+            className={`list-item ${cls ? `chip ${cls}` : ''}`}
+            style={{ marginTop: 0, borderRadius: 10, justifyContent: 'flex-start', whiteSpace: 'normal', textAlign: 'left' }}
+            disabled={shown}
+            onClick={() => setPicked((p) => p.map((x, j) => (j === i ? k : x)))}
+          >
+            <b style={{ width: 22 }}>{LETTERS[k]}</b>
+            {o}
+          </button>
+        );
+      })}
+      {shown && mode === 'practice' && <div className="small muted">{item.explanation}</div>}
+      {mode === 'practice' && !shown ? (
+        <button className="btn primary" disabled={picked[i] == null} onClick={() => setShown(true)} style={{ alignSelf: 'flex-start' }}>
+          Check
+        </button>
+      ) : (
+        <button className="btn primary" disabled={picked[i] == null} onClick={next} style={{ alignSelf: 'flex-start' }}>
+          {i + 1 < items.length ? 'Next' : 'Finish'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function LinesPlayer({ mode, lines }: { mode: Mode; lines: { text: string; speaker?: 'woman' | 'man' }[] }) {
+  const p = usePlayer(mode);
+  return <PlayButton p={p} onPlay={() => p.play(lines)} />;
+}
+
+/** Word endings for Complete the Words: type the full word from its root. */
+export function SpellingItems({ data, mode, onSubmit }: { data: GenOut<'spelling'>; mode: Mode; onSubmit: (o: TaskOutcome) => void }) {
+  const [vals, setVals] = useState<string[]>(() => data.items.map(() => ''));
+  const [done, setDone] = useState(false);
+  const right = (k: number) => vals[k].trim().toLowerCase() === data.items[k].answer.toLowerCase();
+  function submit() {
+    setDone(true);
+    const marks = data.items.map((_, k) => ({ type: 'spelling', correct: right(k) }));
+    onSubmit({ points: marks.filter((m) => m.correct).length, max: marks.length, marks });
+  }
+  return (
+    <div className="stack">
+      {data.items.map((it, k) => (
+        <div key={k} className="soft stack">
+          <div>{it.sentence}</div>
+          <div className="row">
+            <span className="small muted">({it.base})</span>
+            <input
+              type="text"
+              spellCheck={false}
+              autoComplete="off"
+              autoCapitalize="off"
+              value={vals[k]}
+              disabled={done}
+              onChange={(e) => setVals((v) => v.map((x, j) => (j === k ? e.target.value : x)))}
+              style={{ maxWidth: 220, borderColor: done ? (right(k) ? 'var(--good)' : 'var(--bad)') : undefined }}
+            />
+            {done && !right(k) && <b style={{ color: 'var(--good)' }}>{it.answer}</b>}
+          </div>
+          {done && mode === 'practice' && <div className="small muted">{it.rule}</div>}
+        </div>
+      ))}
+      {!done && (
+        <button className="btn primary" onClick={submit} style={{ alignSelf: 'flex-start' }}>
+          Check
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Word-by-word comparison of what was typed against the sentence. */
+function WordDiff({ reference, typed }: { reference: string; typed: string }) {
+  const ops = align(splitWords(reference), splitWords(typed));
+  return (
+    <div style={{ lineHeight: 1.9 }}>
+      {ops.map((o, k) =>
+        o.type === 'match' ? (
+          <span key={k} style={{ color: 'var(--good)' }}>
+            {o.ref}{' '}
+          </span>
+        ) : o.type === 'sub' ? (
+          <span key={k}>
+            <s className="muted">{o.hyp}</s> <b style={{ color: 'var(--bad)' }}>{o.ref}</b>{' '}
+          </span>
+        ) : o.type === 'del' ? (
+          <b key={k} style={{ color: 'var(--bad)', textDecoration: 'underline' }}>
+            {o.ref}{' '}
+          </b>
+        ) : (
+          <s key={k} className="muted">
+            {o.hyp}{' '}
+          </s>
+        ),
+      )}
+    </div>
+  );
+}
+
+/** Dictation: hear a sentence (up to 3 times), type it exactly; every word is checked. */
+export function DictationItems({ data, mode, onSubmit }: { data: GenOut<'dictation'>; mode: Mode; onSubmit: (o: TaskOutcome) => void }) {
+  const [i, setI] = useState(0);
+  const [typed, setTyped] = useState('');
+  const [checked, setChecked] = useState(false);
+  const scores = useRef<number[]>([]);
+  const item = data.items[i];
+  if (!item) return <div className="muted">Done.</div>;
+  const ref = splitWords(item.sentence);
+  const acc = checked ? align(ref, splitWords(typed)).filter((o) => o.type === 'match').length / ref.length : 0;
+  function next() {
+    scores.current[i] = acc;
+    setTyped('');
+    setChecked(false);
+    if (i + 1 < data.items.length) setI(i + 1);
+    else {
+      const marks = scores.current.map((a) => ({ type: 'dictation', correct: a >= 0.9 }));
+      onSubmit({ points: marks.filter((m) => m.correct).length, max: marks.length, marks });
+      setI(data.items.length);
+    }
+  }
+  return (
+    <div className="stack">
+      <div className="small muted">
+        Sentence {i + 1} of {data.items.length} · type every word; punctuation and capitals don't count
+      </div>
+      <LinesPlayerLimit key={i} mode={mode} text={item.sentence} />
+      <input type="text" spellCheck={false} autoComplete="off" autoCapitalize="off" value={typed} disabled={checked} onChange={(e) => setTyped(e.target.value)} placeholder="Type what you heard…" />
+      {checked && (
+        <div className="soft stack">
+          <WordDiff reference={item.sentence} typed={typed} />
+          <span className={`chip ${acc >= 0.9 ? 'good' : acc >= 0.7 ? 'ok' : 'bad'}`} style={{ alignSelf: 'flex-start' }}>
+            {Math.round(acc * 100)}% of words
+          </span>
+        </div>
+      )}
+      {!checked ? (
+        <button className="btn primary" disabled={!typed.trim()} onClick={() => setChecked(true)} style={{ alignSelf: 'flex-start' }}>
+          Check
+        </button>
+      ) : (
+        <button className="btn primary" onClick={next} style={{ alignSelf: 'flex-start' }}>
+          {i + 1 < data.items.length ? 'Next' : 'Finish'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function LinesPlayerLimit({ mode, text }: { mode: Mode; text: string }) {
+  const p = usePlayer(mode, 3);
+  return <PlayButton p={p} onPlay={() => p.play([{ text }])} />;
+}
+
+/** Content words of a text, for checking notes against key points. */
+const STOP = new Set('the a an and or but of to in on at for with by from is are was were be been it its this that these those as their they them which who than then so such not can will would could should may might into about over more most also very just only'.split(' '));
+const content = (t: string) => splitWords(t).filter((w) => w.length > 2 && !STOP.has(w));
+
+/** Share of a key point's content words that appear in the notes (word stems of 5 letters count). */
+export function noteCoverage(point: string, notes: string): number {
+  const have = new Set(content(notes).map((w) => w.slice(0, 5)));
+  const need = content(point);
+  if (!need.length) return 1;
+  return need.filter((w) => have.has(w.slice(0, 5))).length / need.length;
+}
+
+/** Note-taking: listen to a lecture once while typing notes, answer from the notes, then see what they caught. */
+export function NotesTask({ data, mode, onSubmit }: { data: GenOut<'notes'>; mode: Mode; onSubmit: (o: TaskOutcome) => void }) {
+  const player = usePlayer(mode, 1);
+  const [notes, setNotes] = useState('');
+  const [done, setDone] = useState(false);
+  return (
+    <div className="stack">
+      <h3 style={{ margin: 0 }}>{data.title}</h3>
+      <div className="small muted">The lecture plays once. Take notes while you listen: short words, arrows, abbreviations. The questions come after, and you can only use your notes.</div>
+      <PlayButton p={player} onPlay={() => player.play([{ text: data.text }])} />
+      <textarea rows={8} spellCheck={false} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Your notes…" disabled={done} />
+      {player.plays > 0 && !player.playing && (
+        <McqList
+          questions={data.questions}
+          mode={mode}
+          onSubmit={(o) => {
+            setDone(true);
+            onSubmit({ ...o, marks: [...o.marks, ...data.keyPoints.map((p) => ({ type: 'note-taking', correct: noteCoverage(p, notes) >= 0.4 }))] });
+          }}
+        />
+      )}
+      {done && mode === 'practice' && (
+        <div className="soft stack">
+          <b>Key points a good note-taker writes down</b>
+          {data.keyPoints.map((p) => {
+            const got = noteCoverage(p, notes) >= 0.4;
+            return (
+              <div key={p} className="small">
+                <span style={{ color: got ? 'var(--good)' : 'var(--bad)' }}>{got ? '✓' : '✗'}</span> {p}
+              </div>
+            );
+          })}
+          <details>
+            <summary className="small">Transcript</summary>
+            <p className="small">{data.text}</p>
+          </details>
+        </div>
+      )}
+    </div>
+  );
 }

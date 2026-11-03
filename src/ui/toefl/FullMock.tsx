@@ -81,9 +81,18 @@ export function FullMock({ finish }: { finish: boolean }) {
   return finish ? <MockResults /> : <MockRunner />;
 }
 
-function MockRunner() {
+/** One section on its own, timed like the real test, giving a band for that skill. */
+export function SectionTest({ section }: { section: Written }) {
+  return <MockRunner section={section} />;
+}
+
+const SECTION_MINUTES: Record<Written, string> = { reading: 'about 20 minutes, two modules', listening: 'about 20 minutes, two modules', writing: 'about 23 minutes' };
+
+function MockRunner({ section }: { section?: Written }) {
   const app = useApp();
-  const [phase, setPhase] = useState<'intro' | 'loading' | 'running' | 'written'>('intro');
+  const stages = section ? STAGES.filter((s) => s.section === section) : STAGES;
+  const [phase, setPhase] = useState<'intro' | 'loading' | 'running' | 'written' | 'section-done'>('intro');
+  const [sectionResult, setSectionResult] = useState<{ band: number; score30: number } | null>(null);
   const [stageIx, setStageIx] = useState(0);
   const [taskIx, setTaskIx] = useState(0);
   const [items, setItems] = useState<{ kind: GenKind; data: unknown }[]>([]);
@@ -96,7 +105,7 @@ function MockRunner() {
   const difficulty = useRef<Difficulty>('standard');
   const deadline = useRef(0);
   const starting = useRef({ ix: 0, d: 'standard' as Difficulty });
-  const stage = STAGES[stageIx];
+  const stage = stages[stageIx];
 
   function fetchItem(st: Stage, kind: GenKind, d: Difficulty) {
     const key = `${st.id}:${kind}:${d}`;
@@ -110,13 +119,13 @@ function MockRunner() {
 
   /** Starts a stage, and fetches the next fixed stage in the background so there's less waiting. */
   async function startStage(ix: number, d: Difficulty) {
-    const st = STAGES[ix];
+    const st = stages[ix];
     starting.current = { ix, d };
     setPhase('loading');
     setError(null);
     difficulty.current = d;
     try {
-      const next = STAGES[ix + 1];
+      const next = stages[ix + 1];
       if (next && !next.adaptive) next.kinds.forEach((k) => fetchItem(next, k, 'standard'));
       const data = await Promise.all(st.kinds.map((k) => fetchItem(st, k, d)));
       setItems(st.kinds.map((kind, k) => ({ kind, data: data[k] })));
@@ -143,14 +152,23 @@ function MockRunner() {
     });
     results.current[stage.id] = { points, max, difficulty: difficulty.current };
     const nextIx = stageIx + 1;
-    if (nextIx >= STAGES.length) {
+    if (nextIx >= stages.length && section) {
+      const score30 = sectionScores(results.current)[section] ?? 0;
+      const band = bandFromSection30(section, score30);
+      app.update((u) => (u.toefl.sectionTests = [...u.toefl.sectionTests, { at: Date.now(), section, band, score30 }].slice(-100)));
+      app.logAttempt({ at: Date.now(), kind: 'toefl', title: `TOEFL ${SECTION_LABELS[section]} section test`, seconds: 0, scores: {}, detail: { section, overall: band } });
+      setSectionResult({ band, score30 });
+      setPhase('section-done');
+      return;
+    }
+    if (nextIx >= stages.length) {
       const s30 = sectionScores(results.current);
       setScores30(s30);
       app.update((u) => (u.toefl.pendingMock = { at: Date.now(), scores30: s30 }));
       setPhase('written');
       return;
     }
-    const next = STAGES[nextIx];
+    const next = stages[nextIx];
     let d: Difficulty = 'standard';
     if (next.adaptive) d = max && points / max >= 0.6 ? 'harder' : 'easier';
     startStage(nextIx, d);
@@ -172,6 +190,57 @@ function MockRunner() {
     app.update((u) => recordOutcome(u, it.kind, o));
     if (taskIx + 1 < items.length) setTaskIx(taskIx + 1);
     else endStage();
+  }
+
+  if (phase === 'intro' && section) {
+    return (
+      <div className="stack">
+        <h1>{SECTION_LABELS[section]} section test</h1>
+        <div className="card stack">
+          <p style={{ margin: 0 }}>
+            The full {SECTION_LABELS[section]} section, timed ({SECTION_MINUTES[section]}), with no feedback until the end.
+            {section !== 'writing' && ' Module 1 decides whether module 2 is the easier or harder one, like the real test.'}
+            {section === 'listening' && ' Audio plays once at normal speed.'}
+            {section === 'writing' && ' Typed, no spellcheck, no pasting.'}
+          </p>
+          {error && <div className="banner error">{error}</div>}
+          <button className="btn primary big" onClick={() => startStage(0, 'standard')}>
+            <Icon name="target" /> Start
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'section-done' && section && sectionResult) {
+    const target = app.user.toefl.target;
+    const gap = Math.max(0, target - sectionResult.band);
+    return (
+      <div className="stack">
+        <h1>{SECTION_LABELS[section]}: band {sectionResult.band.toFixed(1)}</h1>
+        <div className="card stack">
+          <div className="spread">
+            <span>Comparable score</span>
+            <span className="chip brand">{sectionResult.score30} / 30</span>
+          </div>
+          <div className="spread">
+            <span>Your target</span>
+            <span className={`chip ${gap ? 'bad' : 'good'}`}>{gap ? `${target.toFixed(1)} (+${gap.toFixed(1)} to go)` : `${target.toFixed(1)} reached`}</span>
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>
+            An estimate from AI-written items. Your answers also went into the mistake log, so the drills now lean on what you missed.
+          </p>
+        </div>
+        <div className="row">
+          <a className="btn primary" href={href(`/toefl/${section}`)}>
+            Back to {SECTION_LABELS[section]}
+          </a>
+          <a className="btn" href={href('/toefl/mistakes')}>
+            Mistake log
+          </a>
+        </div>
+      </div>
+    );
   }
 
   if (phase === 'intro') {
@@ -209,7 +278,7 @@ function MockRunner() {
   if (phase === 'loading') {
     return (
       <div className="stack">
-        <h1>Preparing {STAGES[starting.current.ix].title}…</h1>
+        <h1>Preparing {stages[starting.current.ix].title}…</h1>
         {error ? (
           <div className="card stack">
             <div className="banner error">{error}</div>

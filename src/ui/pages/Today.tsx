@@ -11,6 +11,7 @@ import { examPlan } from '../../engine/exam.ts';
 import { levelFromXp } from '../../engine/gamification.ts';
 import { LEARNED_BOX, startOfDay } from '../../engine/srs.ts';
 import { computeFocus, mondayKey } from '../../engine/focus.ts';
+import { weakestSkill } from '../../engine/toeflSkill.ts';
 import { SpendingBanner } from '../components/Spending.tsx';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
@@ -93,6 +94,10 @@ export function Today() {
   if (exam.today === 'mock') plan.push({ to: '/toefl/mock', icon: 'trophy', title: 'TOEFL mock test', desc: `Full speaking section, about 8 minutes${examNote}`, minutes: 10, done: didToday(['toefl']) });
   else if (exam.today === 'interview') plan.push({ to: '/toefl/interview', icon: 'trophy', title: 'TOEFL: Take an Interview', desc: `4 questions, 45 seconds each${examNote}`, minutes: 6, done: didToday(['toefl']) });
   else if (exam.today === 'repeat') plan.push({ to: '/toefl/repeat', icon: 'trophy', title: 'TOEFL: Listen and Repeat', desc: `7 sentences${examNote}`, minutes: 4, done: didToday(['toefl']) });
+  if (user.toefl.scores.length || user.toefl.log.length || user.settings.examDate) {
+    const skill = weakestSkill(user);
+    plan.push({ to: skill === 'speaking' ? '/toefl/speaking/long' : `/toefl/${skill}/drill`, icon: 'trophy', title: `TOEFL ${skill} drill`, desc: `Your skill furthest from band ${user.toefl.target.toFixed(1)}; full plan on the TOEFL page`, minutes: 10, done: didToday(['toefl']) });
+  }
   // In the last six weeks before the exam, TOEFL practice replaces the daily conversation.
   const examWeeks = exam.phase === 'final' || exam.phase === 'focus';
   if (!examWeeks && dow % 2 === 0 && unit) plan.push({ to: `/tutor?kind=roleplay&unit=${unit.id}`, icon: 'users', title: `Role-play: ${unit.roleplay.title}`, desc: 'Real situation with the tutor', minutes: 8, done: didToday(['roleplay']) });
