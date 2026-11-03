@@ -93,6 +93,7 @@ export function PracticeHub() {
       title: 'TOEFL and level',
       items: [
         { to: '/toefl', icon: 'trophy', title: 'TOEFL (all four sections)', desc: 'Reading, Listening, Writing, Speaking, full mock, KAUST plan.' },
+        { to: '/kaust', icon: 'target', title: 'KAUST application coach', desc: 'Statement of purpose, faculty emails and interview, research pitch, seminar.' },
         { to: '/placement', icon: 'target', title: 'Fast-track level test', desc: 'Pass whole levels in a few minutes.' },
         { to: '/path', icon: 'path', title: 'My path', desc: unit ? `Now: ${unit.level} · ${unit.title}` : 'All units done.' },
       ],

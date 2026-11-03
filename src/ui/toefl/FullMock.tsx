@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GenKind, GenOut } from '../../../shared/toefl.ts';
 import { bandFromSection30, overallBand, section30FromBand, section30FromShare, SECTION_LABELS, type Section, type ToeflScore } from '../../engine/toeflScale.ts';
-import { aiTask } from '../../lib/api.ts';
+import { toeflItem } from '../../ai/toeflBank.ts';
 import { go, href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -110,7 +110,7 @@ function MockRunner({ section }: { section?: Written }) {
   function fetchItem(st: Stage, kind: GenKind, d: Difficulty) {
     const key = `${st.id}:${kind}:${d}`;
     if (!cache.current.has(key)) {
-      const p = aiTask('toeflGen', { kind, difficulty: d });
+      const p = toeflItem({ kind, difficulty: d });
       p.catch(() => cache.current.delete(key));
       cache.current.set(key, p);
     }
@@ -332,16 +332,57 @@ function MockRunner({ section }: { section?: Written }) {
   const it = items[taskIx];
   return (
     <div className="stack">
-      <div className="spread">
-        <span className="small muted">
-          {stage.title} · task {taskIx + 1} of {items.length}
-          {stage.adaptive && ` · ${difficulty.current === 'harder' ? 'upper' : 'lower'} module`}
-        </span>
-        {stage.seconds != null && <span className={`chip ${left > 60 ? 'brand' : 'bad'}`}>{clock(left)}</span>}
-      </div>
+      <ExamHeader
+        title={stage.title}
+        detail={`Task ${taskIx + 1} of ${items.length}`}
+        seconds={stage.seconds != null ? left : null}
+        onExit={() => {
+          if (confirm('Leave the test? Your answers so far are kept in the mistake log, but this attempt gets no score.')) {
+            if (!section) app.update((u) => delete u.toefl.pendingMock);
+            go(section ? `/toefl/${section}` : '/toefl');
+          }
+        }}
+      />
       <div className="card" key={`${stage.id}-${taskIx}`}>
         <TaskView kind={it.kind} data={it.data} mode="mock" onSubmit={onSubmit} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Test-style screen while a timed test runs: the app's menus are hidden, a slim header shows the
+ * section, task and a timer that can be hidden, and leaving the page asks first.
+ */
+function ExamHeader({ title, detail, seconds, onExit }: { title: string; detail: string; seconds: number | null; onExit: () => void }) {
+  const [hideTime, setHideTime] = useState(false);
+  useEffect(() => {
+    document.body.classList.add('exam-mode');
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => {
+      document.body.classList.remove('exam-mode');
+      window.removeEventListener('beforeunload', warn);
+    };
+  }, []);
+  const low = seconds != null && seconds <= 60;
+  return (
+    <div className="exam-header">
+      <div className="grow">
+        <b>{title}</b>
+        <div className="small muted">{detail}</div>
+      </div>
+      {seconds != null && (
+        <div className="row" style={{ gap: 6 }}>
+          {(!hideTime || low) && <span className={`chip ${low ? 'bad' : 'brand'}`} style={{ fontVariantNumeric: 'tabular-nums' }}>{clock(seconds)}</span>}
+          <button className="btn small ghost" onClick={() => setHideTime(!hideTime)}>
+            {hideTime ? 'Show time' : 'Hide time'}
+          </button>
+        </div>
+      )}
+      <button className="btn small ghost" onClick={onExit}>
+        Exit
+      </button>
     </div>
   );
 }

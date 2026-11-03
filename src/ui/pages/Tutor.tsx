@@ -51,10 +51,12 @@ const ATTEMPT_KIND: Record<ChatKind, AttemptKind> = {
   phone: 'phone',
   job: 'interview',
   smalltalk: 'smalltalk',
+  research: 'interview',
+  seminar: 'debate',
 };
 
 /** The tutor says one of these when a scene is over; the session then ends with a report. */
-const SCENE_OVER = /end of (the )?(role-?play|call|interview)|debate over/i;
+const SCENE_OVER = /end of (the )?(role-?play|call|interview|seminar)|debate over/i;
 
 const START_LABEL: Record<ChatKind, string> = {
   free: 'Start conversation',
@@ -65,6 +67,8 @@ const START_LABEL: Record<ChatKind, string> = {
   phone: 'Call',
   job: 'Start the interview',
   smalltalk: 'Start chatting',
+  research: 'Start the interview',
+  seminar: 'Join the seminar',
 };
 
 function callTime(ms: number): string {
@@ -81,9 +85,21 @@ export function Tutor({ query }: { query: URLSearchParams }) {
   const scenario: Scenario | undefined = kind === 'roleplay' || kind === 'unit' ? unit?.roleplay : extra?.scenario;
   const debate = kind === 'debate' ? { motion: query.get('topic') ?? '', side: (query.get('side') === 'against' ? 'against' : 'for') as 'for' | 'against' } : undefined;
   const job = kind === 'job' ? user.interviewPrep : undefined;
+  const research = kind === 'research' && user.kaust ? { program: user.kaust.program, interests: user.kaust.interests, cv: user.kaust.cv, professor: query.get('area') ?? undefined } : undefined;
+  const seminar = kind === 'seminar' ? { topic: query.get('topic') ?? 'Should research data always be openly shared?' } : undefined;
   const phone = kind === 'phone';
   const level = unit?.level ?? workingLevel(user);
-  const title = debate ? `Debate: ${debate.motion}` : job ? 'Mock job interview' : scenario ? scenario.title : `Conversation: ${query.get('topic') || 'free talk'}`;
+  const title = debate
+    ? `Debate: ${debate.motion}`
+    : job
+      ? 'Mock job interview'
+      : kind === 'research'
+        ? 'KAUST faculty interview'
+        : seminar
+          ? `Seminar: ${seminar.topic}`
+          : scenario
+            ? scenario.title
+            : `Conversation: ${query.get('topic') || 'free talk'}`;
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [topic, setTopic] = useState(query.get('topic') ?? '');
@@ -144,6 +160,8 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       memory: memory.current,
       debate,
       job: job ? { ad: job.ad, cv: job.cv } : undefined,
+      research,
+      seminar,
       targets: unit ? { grammar: unit.grammar.name, functions: unit.functions, vocab: unit.vocab } : undefined,
       goals: ['work meetings', 'the new TOEFL iBT'],
       correction,
@@ -368,7 +386,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
           <a
             className="small"
             href={href(
-              kind === 'unit' && unit ? `/unit/${unit.id}` : kind === 'debate' ? '/debate' : kind === 'phone' ? '/phone' : kind === 'job' ? '/interview-prep' : kind === 'smalltalk' ? '/smalltalk' : '/roleplays',
+              kind === 'unit' && unit ? `/unit/${unit.id}` : kind === 'debate' ? '/debate' : kind === 'phone' ? '/phone' : kind === 'job' ? '/interview-prep' : kind === 'smalltalk' ? '/smalltalk' : kind === 'research' || kind === 'seminar' ? '/kaust' : '/roleplays',
             )}
           >
             ← Back
@@ -381,6 +399,21 @@ export function Tutor({ query }: { query: URLSearchParams }) {
               You argue <b>{debate.side === 'for' ? 'FOR' : 'AGAINST'}</b> the motion; the tutor argues the other side and pushes back. About 5 rounds.
             </p>
             <p className="small muted">Give a clear position, a reason, and an example each time. Answer the tutor's challenge before making a new point.</p>
+          </div>
+        ) : kind === 'research' ? (
+          research?.cv || research?.interests ? (
+            <div className="card stack">
+              <p>A professor interviews you for the {research.program || 'graduate'} program: your background, a deep dive into one project, a technical question, why KAUST, and a short research problem. About 9 questions.</p>
+              <p className="small muted">Answer like a researcher: what you did, why, what you learned. It's fine to say what you don't know yet.</p>
+            </div>
+          ) : (
+            <div className="banner">
+              First add your program, interests and CV on the <a href={href('/kaust')}>KAUST coach</a> page.
+            </div>
+          )
+        ) : kind === 'seminar' ? (
+          <div className="card stack">
+            <p>A professor and two classmates discuss the topic. Take the floor: give a position, build on or challenge a classmate, ask for clarification, and summarize. About 8 turns.</p>
           </div>
         ) : kind === 'job' ? (
           job?.ad && job.cv ? (
@@ -471,7 +504,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
             <a href={href('/roleplays')}>Role-plays</a>
           </div>
         )}
-        <button className="btn primary big" onClick={start} disabled={kind === 'job' && !(job?.ad && job.cv)}>
+        <button className="btn primary big" onClick={start} disabled={(kind === 'job' && !(job?.ad && job.cv)) || (kind === 'research' && !(research?.cv || research?.interests))}>
           <Icon name="mic" /> {START_LABEL[kind]}
         </button>
         <p className="small muted">

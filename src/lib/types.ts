@@ -95,6 +95,8 @@ export interface UserDoc {
   memory: { facts: string[]; topics: string[] };
   /** Saved job ad and CV for interview practice. */
   interviewPrep?: { ad: string; cv: string };
+  /** KAUST application coach: profile, professors of interest, statement drafts. */
+  kaust?: KaustData;
   micCheck?: MicCheckResult;
   /** Estimated spending by local date. */
   usage: Record<string, UsageDay>;
@@ -171,6 +173,10 @@ export interface ToeflData {
   sounds: Record<string, { sum: number; n: number }>;
   /** Recent start delays (ms) in 15-second quick answers. */
   quick: number[];
+  /** Per-skill shift learned from official results (official minus estimate). */
+  calibration: Partial<Record<Section, number>>;
+  /** What was predicted vs the official result, for the scores page. */
+  calibrationLog: { at: number; section: Section; predicted: number; official: number }[];
 }
 
 export interface ReviewItem {
@@ -186,7 +192,7 @@ export interface ReviewItem {
 }
 
 export function emptyToefl(): ToeflData {
-  return { target: 5.5, minimum: 5, scores: [], typeStats: {}, sectionStats: {}, typing: [], log: [], sectionTests: [], vocab: {}, writeErrors: [], listenRate: 1, listenVoices: 'standard', review: [], arabic: false, typeWeeks: {}, checklist: {}, planChecks: { date: '', done: [] }, sounds: {}, quick: [] };
+  return { target: 5.5, minimum: 5, scores: [], typeStats: {}, sectionStats: {}, typing: [], log: [], sectionTests: [], vocab: {}, writeErrors: [], listenRate: 1, listenVoices: 'standard', review: [], arabic: false, typeWeeks: {}, checklist: {}, planChecks: { date: '', done: [] }, sounds: {}, quick: [], calibration: {}, calibrationLog: [] };
 }
 
 /** The goal used to be on the 0-120 scale; it is now a 1-6 band. */
@@ -373,3 +379,16 @@ export interface Checkup {
 }
 
 export type Collection = 'attempts' | 'mistakes' | 'recordings' | 'sessions' | 'vocab' | 'journal' | 'texts' | 'checkups';
+
+export interface KaustData {
+  program: string;
+  interests: string;
+  cv: string;
+  professors: { id: string; name: string; area: string; notes: string }[];
+  /** Statement of purpose versions with their review score (newest last). */
+  sops: { at: number; text: string; score: number | null }[];
+  /** Last research pitch transcript, for audience Q&A. */
+  pitch?: string;
+}
+
+export const emptyKaust = (): KaustData => ({ program: '', interests: '', cv: '', professors: [], sops: [] });

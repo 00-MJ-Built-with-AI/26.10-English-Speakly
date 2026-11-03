@@ -11,12 +11,12 @@ type IconName = Parameters<typeof Icon>[0]['name'];
 
 /** Overview + one tab per skill, shown at the top of every TOEFL page. */
 export function ToeflTabs({ active }: { active: string | undefined }) {
-  const tabs = [{ id: '', label: 'Overview' }, ...SKILLS.map((s) => ({ id: s, label: SECTION_LABELS[s] }))];
-  const current = SKILLS.includes(active as Section) ? active : '';
+  const tabs = [{ id: '', label: 'Overview' }, ...SKILLS.map((s) => ({ id: s, label: SECTION_LABELS[s] })), { id: 'kaust', label: 'KAUST coach' }];
+  const current = SKILLS.includes(active as Section) || active === 'kaust' ? active : '';
   return (
-    <nav className="row" style={{ gap: 6, marginBottom: 12, overflowX: 'auto', flexWrap: 'nowrap' }} aria-label="TOEFL sections">
+    <nav className="row toefl-tabs" style={{ gap: 6, marginBottom: 12, overflowX: 'auto', flexWrap: 'nowrap' }} aria-label="TOEFL sections">
       {tabs.map((t) => (
-        <a key={t.id} className={`btn small ${current === t.id ? 'primary' : 'ghost'}`} href={href(t.id ? `/toefl/${t.id}` : '/toefl')} aria-current={current === t.id ? 'page' : undefined}>
+        <a key={t.id} className={`btn small ${current === t.id ? 'primary' : 'ghost'}`} href={href(t.id === 'kaust' ? '/kaust' : t.id ? `/toefl/${t.id}` : '/toefl')} aria-current={current === t.id ? 'page' : undefined}>
           {t.label}
         </a>
       ))}

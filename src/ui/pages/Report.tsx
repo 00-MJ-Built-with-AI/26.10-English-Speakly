@@ -9,6 +9,9 @@ import { SKILLS, type Attempt, type Checkup } from '../../lib/types.ts';
 import { LEVELS } from '../../../shared/tasks.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ScoreRing, SKILL_COLORS, SKILL_LABELS } from '../components/ScoreRing.tsx';
+import { readiness } from '../../engine/toeflExtras.ts';
+import { analyzeBands, gapSummary, weakTypes } from '../../engine/toeflPlan.ts';
+import { SECTION_LABELS, SECTIONS, type Section } from '../../engine/toeflScale.ts';
 
 const KIND_NAMES: Partial<Record<Attempt['kind'], string>> = {
   tutor: 'Conversations',
@@ -140,6 +143,8 @@ export function Report() {
         </div>
       </div>
 
+      <ToeflReport recent={recent} />
+
       {sounds.length > 0 && checkup && (
         <div className="card stack">
           <h3 style={{ margin: 0 }}>Pronunciation check-up ({new Date(checkup.at).toLocaleDateString()})</h3>
@@ -171,6 +176,80 @@ export function Report() {
       <p className="small faint">
         Scores are estimates from Speakly's speech analysis (Azure pronunciation assessment) and AI-graded speaking tasks, on a 0-100 scale with CEFR bands. They are not an official test result.
       </p>
+    </div>
+  );
+}
+
+const VERDICT_TEXT = { ready: 'Ready to book', close: 'Close to the goal', 'not-yet': 'Not ready yet', 'need-data': 'Not enough data yet' } as const;
+
+/** TOEFL bands per skill against the goal, readiness, and what to work on. */
+function ToeflReport({ recent }: { recent: Attempt[] }) {
+  const { user } = useApp();
+  const t = user.toefl;
+  const r = readiness(t, user.toeflBand, t.target, t.minimum);
+  if (r.verdict === 'need-data' && !t.scores.length && !t.log.length) return null;
+  const official = t.scores.find((x) => x.source === 'official');
+  const bands = Object.fromEntries(SECTIONS.map((s) => [s, r.skills.find((x) => x.section === s)?.band ?? 4])) as Record<Section, number>;
+  const weak = weakTypes(t.typeStats).slice(0, 3);
+  const toeflMin = Math.round(recent.filter((a) => a.kind === 'toefl').reduce((a, x) => a + x.seconds, 0) / 60);
+  const typing = t.typing.length ? Math.round(t.typing.slice(-5).reduce((a, b) => a + b, 0) / Math.min(5, t.typing.length)) : null;
+  return (
+    <div className="card stack" style={{ breakInside: 'avoid' }}>
+      <div className="spread">
+        <h3 style={{ margin: 0 }}>TOEFL iBT</h3>
+        <span className="small muted">
+          Goal band {t.target.toFixed(1)} (minimum {t.minimum.toFixed(1)}) for KAUST
+        </span>
+      </div>
+      <table className="small" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr className="muted">
+            <th style={{ textAlign: 'left' }}>Skill</th>
+            <th>Estimate</th>
+            <th>Likely range</th>
+            <th>Last official</th>
+            <th>To target</th>
+          </tr>
+        </thead>
+        <tbody>
+          {r.skills.map((s) => (
+            <tr key={s.section} style={{ borderTop: '1px solid var(--line)' }}>
+              <td>{SECTION_LABELS[s.section]}</td>
+              <td style={{ textAlign: 'center' }}>
+                <b>{s.band?.toFixed(1) ?? '–'}</b>
+              </td>
+              <td style={{ textAlign: 'center' }}>{s.lo != null ? `${s.lo.toFixed(1)}-${s.hi!.toFixed(1)}` : '–'}</td>
+              <td style={{ textAlign: 'center' }}>{official ? official.bands[s.section].toFixed(1) : '–'}</td>
+              <td style={{ textAlign: 'center' }}>{s.band == null ? '–' : s.band >= t.target ? '✓' : `+${(t.target - s.band).toFixed(1)}`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="small">
+        <b>{VERDICT_TEXT[r.verdict]}.</b> {r.verdict !== 'need-data' && gapSummary(analyzeBands(bands, t.target, t.minimum))}
+      </div>
+      <div className="grid grid-3 small">
+        <div>
+          <div className="muted">Official result</div>
+          <b>{official ? `${official.overall.toFixed(1)} on ${official.date}` : 'none yet'}</b>
+        </div>
+        <div>
+          <div className="muted">TOEFL practice, last 30 days</div>
+          <b>{toeflMin} minutes</b>
+        </div>
+        <div>
+          <div className="muted">Typing speed</div>
+          <b>{typing != null ? `${typing} wpm` : '–'}</b>
+        </div>
+      </div>
+      {weak.length > 0 && (
+        <div className="small">
+          <span className="muted">Weakest question types:</span> {weak.map((w) => `${w} (${Math.round((t.typeStats[w].right / t.typeStats[w].total) * 100)}%)`).join(', ')}
+        </div>
+      )}
+      <div className="small faint">
+        Estimates from AI-written practice items, mocks and section tests{Object.keys(t.calibration).length ? ', calibrated against the official result' : ''}; not an official score.
+      </div>
     </div>
   );
 }

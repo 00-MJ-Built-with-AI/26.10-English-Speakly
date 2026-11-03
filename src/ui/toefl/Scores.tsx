@@ -3,6 +3,7 @@ import { daysUntil } from '../../engine/exam.ts';
 import { analyzeGap, buildPlan, gapSummary, planOffset } from '../../engine/toeflPlan.ts';
 import { comparableTotal, KAUST, overallBand, SECTION_LABELS, SECTIONS, type Section, type ToeflScore } from '../../engine/toeflScale.ts';
 import { aiTask } from '../../lib/api.ts';
+import { calibrate } from '../../engine/toeflSkill.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -89,6 +90,10 @@ export function Scores() {
       total: draft.total,
     };
     app.update((u) => {
+      // Learn how far the app's estimates were off before adding the result itself.
+      const c = calibrate(u.toefl, score, u.toeflBand);
+      u.toefl.calibration = c.calibration;
+      u.toefl.calibrationLog = [...u.toefl.calibrationLog, ...c.entries].slice(-40);
       u.toefl.scores = [score, ...u.toefl.scores].sort((a, b) => b.date.localeCompare(a.date) || b.at - a.at);
       // toeflBand is the speaking estimate; an official result resets it.
       u.toeflBand = bands.speaking;
@@ -126,6 +131,8 @@ export function Scores() {
       </div>
 
       {t.scores[0] && <GapCard score={t.scores[0]} showPlan />}
+
+      <CalibrationCard />
 
       {t.scores.length > 0 && (
         <div className="card">
@@ -301,6 +308,43 @@ export function GapCard({ score, showPlan = false }: { score: ToeflScore; showPl
           </div>
         </details>
       )}
+    </div>
+  );
+}
+
+/** How the app's predictions compared with your official results, and the shift it now applies. */
+export function CalibrationCard() {
+  const { user } = useApp();
+  const t = user.toefl;
+  const shifts = SECTIONS.filter((s) => t.calibration[s]);
+  if (!t.calibrationLog.length) {
+    return (
+      <div className="card small muted">
+        <b>Calibration.</b> After your real exam, add the score here: the app compares it with what it predicted from your mocks and practice, and corrects its estimates for each skill.
+      </div>
+    );
+  }
+  const last = t.calibrationLog.filter((e) => e.at === t.calibrationLog[t.calibrationLog.length - 1].at);
+  return (
+    <div className="card stack">
+      <h3 style={{ margin: 0 }}>Calibration</h3>
+      {last.map((e) => (
+        <div key={e.section} className="spread small">
+          <span>{SECTION_LABELS[e.section]}</span>
+          <span>
+            predicted {e.predicted.toFixed(1)} · official <b>{e.official.toFixed(1)}</b>{' '}
+            <span className={e.official === e.predicted ? 'muted' : ''} style={{ color: e.official > e.predicted ? 'var(--good)' : e.official < e.predicted ? 'var(--bad)' : undefined }}>
+              ({e.official > e.predicted ? '+' : ''}
+              {(e.official - e.predicted).toFixed(1)})
+            </span>
+          </span>
+        </div>
+      ))}
+      <div className="small muted">
+        {shifts.length
+          ? `Estimates from mocks and practice are now shifted: ${shifts.map((s) => `${SECTION_LABELS[s]} ${t.calibration[s]! > 0 ? '+' : ''}${t.calibration[s]!.toFixed(1)}`).join(', ')}.`
+          : 'The predictions matched, so no shift is applied.'}
+      </div>
     </div>
   );
 }

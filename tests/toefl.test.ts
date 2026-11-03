@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeGap, buildPlan, weakTypes } from '../src/engine/toeflPlan.ts';
-import { practiceBand, skillBand, weakestSkill } from '../src/engine/toeflSkill.ts';
+import { calibrate, practiceBand, skillBand, weakestSkill } from '../src/engine/toeflSkill.ts';
 import { planToIcs, readiness, reviewNext, weekKey } from '../src/engine/toeflExtras.ts';
 import { bandFromSection30, bandFromTotal, comparableTotal, overallBand, section30FromBand, totalRange, type ToeflScore } from '../src/engine/toeflScale.ts';
 
@@ -127,5 +127,20 @@ describe('review, readiness and calendar', () => {
     expect(weekKey(new Date(2026, 10, 5).getTime())).toBe('2026-11-02');
     expect(weekKey(new Date(2026, 10, 2).getTime())).toBe('2026-11-02');
     expect(weekKey(new Date(2026, 10, 1).getTime())).toBe('2026-10-26');
+  });
+});
+
+describe('calibration', () => {
+  it('learns the gap between estimate and official result and shifts later estimates', () => {
+    const mock = { ...score({ reading: 4.5, listening: 5, writing: 4, speaking: 4.5 }), source: 'mock' as const, at: Date.parse('2026-10-10') };
+    const official = score({ reading: 5, listening: 5, writing: 3.5, speaking: 4.5 }); // dated 2026-10-20
+    const d = { scores: [mock], log: [], sectionTests: [] };
+    const c = calibrate(d, official, null);
+    expect(c.calibration).toEqual({ reading: 0.5, listening: 0, writing: -0.5, speaking: 0 });
+    expect(c.entries).toHaveLength(4);
+    // A later section test of 4.5 in Reading now reads as 5.0; the official score itself is not shifted.
+    const after = { scores: [official, mock], log: [], sectionTests: [{ at: Date.parse('2026-11-01'), section: 'reading' as const, band: 4.5 }], calibration: c.calibration };
+    expect(skillBand(after, 'reading')?.band).toBe(5);
+    expect(skillBand(after, 'writing')?.band).toBe(3.5);
   });
 });

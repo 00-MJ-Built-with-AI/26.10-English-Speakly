@@ -286,6 +286,44 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
       const score = Math.min(5, 1 + parts.filter((n) => n >= 3).length + (parts[2] >= 6 ? 1 : 0));
       return { score, good: parts[0] >= 3 ? ['You have a clear view.'] : [], fix: parts[2] < 6 ? ['Make the example specific: who, where, what happened.'] : [], better: { view: String(i.view || 'My view…'), reason: String(i.reason || 'because…'), example: String(i.example || 'for example…') } } as TaskMap[K][1];
     }
+    case 'sopReview': {
+      const t = String(i.text ?? '');
+      const has = (re: RegExp) => re.test(t);
+      const part = (ok: boolean, c: string) => ({ present: ok, comment: ok ? '(Test mode) Found by key words.' : c });
+      return {
+        score: Math.min(5, 1 + [/research|project|thesis/i, /KAUST|professor|lab/i, /goal|future|career|plan/i, /because|since|when I/i].filter((r) => has(r)).length),
+        summary: `(Test mode) ${countWords(t)} words. Real feedback from an admissions point of view appears once the AI key is added.`,
+        parts: {
+          motivation: part(has(/because|since|when I|inspired/i), 'Say what first drew you to this field, specifically.'),
+          background: part(has(/degree|course|bachelor|master|GPA/i), 'Name the preparation that matters most.'),
+          research: part(has(/research|project|thesis|experiment/i), 'Describe one project: your role, method, result.'),
+          fit: part(has(/KAUST|professor|lab|group/i), 'Name the lab or faculty and why their work fits yours.'),
+          goals: part(has(/goal|future|career|plan|after/i), 'Say what you want to do with the degree.'),
+        },
+        strengths: [],
+        issues: ['(Test mode) Add the AI key for a real review.'],
+        edits: findErrors(t).map((e) => ({ original: e.original, better: e.corrected, why: e.explanation })),
+      } as TaskMap[K][1];
+    }
+    case 'facultyEmail':
+      return {
+        subject: `Prospective ${(i.profile as { program?: string } | undefined)?.program || 'graduate'} student interested in ${i.area || 'your research'}`,
+        body: `Dear Professor ${String(i.professor || '[name]').replace(/^(prof\.?|professor|dr\.?)\s+/i, '')},\n\nMy name is [your name], and I am applying to the ${(i.profile as { program?: string } | undefined)?.program || '[program]'} program at KAUST. I am interested in ${i.area || '[area]'}${i.work ? `, and I read your work on ${i.work}` : ''}.\n\n[One or two sentences linking your experience to the professor's work.]\n\nWould you be taking new students for [term]? I have attached my CV and would be grateful for a short call if you think there could be a fit.\n\nThank you for your time.\n\nBest regards,\n[Your name]`,
+        notes: ['(Test mode) A template. With the AI key you get an email built from your profile.', 'Check every [bracket] before sending.'],
+      } as TaskMap[K][1];
+    case 'pitch': {
+      const t = String(i.transcript ?? '');
+      return {
+        score: Math.min(5, 1 + Math.floor(countWords(t) / 60)),
+        parts: { problem: /problem|challenge|question/i.test(t), approach: /we use|I use|method|approach|model/i.test(t), results: /result|found|show/i.test(t), impact: /impact|matter|help|could/i.test(t) },
+        feedback: `(Test mode) ${countWords(t)} words in ${Math.round(Number(i.seconds) || 0)} s. Real feedback appears with the AI key.`,
+        tips: ['Open with the problem in one sentence a non-specialist understands.', 'End with why it matters.'],
+        improved: '(Test mode) A tighter version of your pitch appears with the AI key.',
+        questions: ['What is the main limitation of your approach?', 'How would you test this outside the lab?', 'How is your work different from existing methods?'],
+      } as TaskMap[K][1];
+    }
+    case 'qa':
+      return { score: Math.min(5, 1 + Math.floor(countWords(String(i.transcript ?? '')) / 25)), feedback: '(Test mode) Real feedback appears with the AI key.', better: '(Test mode) A model answer appears with the AI key. Shape: direct answer, one reason or example, honest limit.' } as TaskMap[K][1];
     case 'speakCompare': {
       const t = String(i.transcript ?? '').toLowerCase();
       const has = (re: RegExp) => re.test(t);

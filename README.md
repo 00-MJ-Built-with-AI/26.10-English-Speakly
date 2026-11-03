@@ -14,6 +14,8 @@ and progress, Azure AI Speech for pronunciation scoring and the tutor's voice, C
   skill tools), typing practice, a mistake log by question type, and score-report photo reading with a
   50-minute daily plan toward band 5.5. Missed questions get an AI explanation (optionally in Arabic) and
   come back for review; a readiness predictor, weekly report, exam-day checklist and calendar export.
+- **KAUST coach**: statement of purpose review, emails to professors, a faculty interview by voice, a
+  2-minute research pitch with audience questions, and seminar discussions.
 - **More practice**: fast-track level test, daily speaking journal, "say it better" from Arabic,
   personal phrase bank, your own texts, filler and pause tracker, intonation graph, mouth diagrams.
 - **Conversation modes**: debate, phone calls, small talk, job interview from your CV; the tutor

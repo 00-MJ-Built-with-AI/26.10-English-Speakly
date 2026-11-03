@@ -6,6 +6,7 @@ import { analyzeBands, buildPlan, planOffset, type PlanDay } from '../../engine/
 import { bandHistory, skillBand } from '../../engine/toeflSkill.ts';
 import { SECTION_LABELS, SECTIONS, type Section } from '../../engine/toeflScale.ts';
 import { aiTask } from '../../lib/api.ts';
+import { toeflItem } from '../../ai/toeflBank.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { Attempt } from '../../lib/types.ts';
@@ -475,7 +476,7 @@ export function EssayPlanner() {
     setError(null);
     setCheck(null);
     try {
-      setData((await aiTask('toeflGen', { kind: 'discussion', difficulty: 'standard' })) as GenOut<'discussion'>);
+      setData((await toeflItem({ kind: 'discussion', difficulty: 'standard' })) as GenOut<'discussion'>);
       setPlan({ view: '', reason: '', example: '' });
       start.current = Date.now();
       setLeft(60);

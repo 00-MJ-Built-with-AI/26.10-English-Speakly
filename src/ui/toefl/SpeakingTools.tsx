@@ -8,6 +8,7 @@ import { addSoundSamples, soundSamples, weakSounds } from '../../engine/toeflExt
 import { soundById } from '../../content/sounds.ts';
 import { href } from '../../lib/router.ts';
 import { aiTask } from '../../lib/api.ts';
+import { toeflItem } from '../../ai/toeflBank.ts';
 import { useApp } from '../../lib/store.tsx';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
@@ -227,7 +228,7 @@ export function TopicBank() {
     setError(null);
     setSet(null);
     try {
-      setSet((await aiTask('toeflGen', { kind: 'interview', difficulty: 'harder', topic: t })) as GenOut<'interview'>);
+      setSet((await toeflItem({ kind: 'interview', difficulty: 'harder', topic: t })) as GenOut<'interview'>);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -310,7 +311,7 @@ export function LongRepeat() {
     setLoading(true);
     setError(null);
     try {
-      setSet((await aiTask('toeflGen', { kind: 'longRepeat', difficulty: 'harder' })) as GenOut<'longRepeat'>);
+      setSet((await toeflItem({ kind: 'longRepeat', difficulty: 'harder' })) as GenOut<'longRepeat'>);
       setI(0);
       setStage(0);
       setBands([]);

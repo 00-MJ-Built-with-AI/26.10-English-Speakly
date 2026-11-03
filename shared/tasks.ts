@@ -3,6 +3,7 @@
  * Shared by the browser (types, offline stand-ins) and the server (prompts, structured output).
  */
 import { z } from 'zod';
+import type { ApplicantProfile, FacultyEmail, FacultyEmailInput, PitchFeedback, PitchInput, QaFeedback, QaInput, SopReview, SopReviewInput } from './kaust.js';
 import type { Arabic, ArabicInput, Explain, ExplainInput, GenKind, GenOut, NotesFeedback, NotesFeedbackInput, PlanCheck, PlanCheckInput, ScoreReport, ScoreReportInput, SpeakCompare, SpeakCompareInput, ToeflGenInput, WritingInput, WritingScore } from './toefl.js';
 
 export const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
@@ -27,7 +28,7 @@ export interface Scenario {
 
 export type CorrectionStyle = 'light' | 'every' | 'end';
 
-export type ChatKind = 'free' | 'roleplay' | 'unit' | 'interview' | 'debate' | 'phone' | 'job' | 'smalltalk';
+export type ChatKind = 'free' | 'roleplay' | 'unit' | 'interview' | 'debate' | 'phone' | 'job' | 'smalltalk' | 'research' | 'seminar';
 
 /** What the tutor remembers about the learner between sessions. */
 export interface TutorMemory {
@@ -52,6 +53,10 @@ export interface ChatInput {
   debate?: { motion: string; side: 'for' | 'against' };
   /** Job interview: the job ad and the learner's CV. */
   job?: { ad: string; cv: string };
+  /** KAUST faculty interview: the applicant and the professor's area. */
+  research?: ApplicantProfile & { professor?: string };
+  /** Seminar discussion: the topic or reading. */
+  seminar?: { topic: string };
 }
 
 // ---- check: one thing the learner said ----
@@ -307,6 +312,10 @@ export interface TaskMap {
   arabic: [ArabicInput, Arabic];
   notesFeedback: [NotesFeedbackInput, NotesFeedback];
   planCheck: [PlanCheckInput, PlanCheck];
+  sopReview: [SopReviewInput, SopReview];
+  facultyEmail: [FacultyEmailInput, FacultyEmail];
+  pitch: [PitchInput, PitchFeedback];
+  qa: [QaInput, QaFeedback];
   check: [CheckInput, CheckResult];
   report: [ReportInput, ReportResult];
   grade: [GradeInput, GradeResult];

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { GenOut } from '../../../shared/toefl.ts';
 import { PHRASES } from '../../content/toeflPhrases.ts';
 import { countWords, words as splitWords } from '../../engine/text.ts';
-import { aiTask } from '../../lib/api.ts';
+import { toeflItem } from '../../ai/toeflBank.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -33,7 +33,7 @@ export function VocabTrainer() {
     setError(null);
     setLearned(null);
     try {
-      setSet((await aiTask('toeflGen', { kind: 'vocab', difficulty: 'harder', topic: Object.keys(words).length ? `Do not use these words: ${Object.keys(words).slice(-60).join(', ')}` : undefined })) as GenOut<'vocab'>);
+      setSet((await toeflItem({ kind: 'vocab', difficulty: 'harder', topic: Object.keys(words).length ? `Do not use these words: ${Object.keys(words).slice(-60).join(', ')}` : undefined })) as GenOut<'vocab'>);
       setMode('learn');
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -161,7 +161,7 @@ export function SpeedReading() {
     setLoading(true);
     setError(null);
     try {
-      setData((await aiTask('toeflGen', { kind: 'academic', difficulty: 'standard' })) as GenOut<'academic'>);
+      setData((await toeflItem({ kind: 'academic', difficulty: 'standard' })) as GenOut<'academic'>);
       setPhase('ready');
       setOutcome(null);
     } catch (e) {

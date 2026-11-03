@@ -38,6 +38,8 @@ import {
 import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
 import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.js';
 import { Arabic, Explain, GEN, NotesFeedback, PlanCheck, ScoreReport, SpeakCompare, WritingScore, type ArabicInput, type ExplainInput, type NotesFeedbackInput, type PlanCheckInput, type ScoreReportInput, type SpeakCompareInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
+import { facultyEmailPrompt, KAUST_SYSTEM, pitchPrompt, qaPrompt, sopPrompt } from './_lib/kaustPrompts.js';
+import { FacultyEmail, PitchFeedback, QaFeedback, SopReview, type FacultyEmailInput, type PitchInput, type QaInput, type SopReviewInput } from '../shared/kaust.js';
 import { arabicPrompt, explainPrompt, notesFeedbackPrompt, planCheckPrompt, speakComparePrompt, TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
 
 const MODEL = process.env.TUTOR_MODEL || 'claude-opus-5-5';
@@ -207,6 +209,10 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
   arabic: (i: ArabicInput) => structured(Arabic, arabicPrompt(i), 'low'),
   notesFeedback: (i: NotesFeedbackInput) => structured(NotesFeedback, notesFeedbackPrompt(i), 'low'),
   planCheck: (i: PlanCheckInput) => structured(PlanCheck, planCheckPrompt(i), 'low'),
+  sopReview: (i: SopReviewInput) => structured(SopReview, sopPrompt(i), 'medium', KAUST_SYSTEM),
+  facultyEmail: (i: FacultyEmailInput) => structured(FacultyEmail, facultyEmailPrompt(i), 'medium', KAUST_SYSTEM),
+  pitch: (i: PitchInput) => structured(PitchFeedback, pitchPrompt(i), 'medium', KAUST_SYSTEM),
+  qa: (i: QaInput) => structured(QaFeedback, qaPrompt(i), 'low', KAUST_SYSTEM),
   scoreReport: (i: ScoreReportInput) =>
     structured(
       ScoreReport,

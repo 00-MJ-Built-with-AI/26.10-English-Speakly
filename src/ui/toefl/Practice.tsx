@@ -3,7 +3,7 @@ import type { GenKind, QuestionType } from '../../../shared/toefl.ts';
 import { weakTypes } from '../../engine/toeflPlan.ts';
 import { skillBand } from '../../engine/toeflSkill.ts';
 import { SECTION_LABELS, type Section } from '../../engine/toeflScale.ts';
-import { aiTask } from '../../lib/api.ts';
+import { toeflItem } from '../../ai/toeflBank.ts';
 import { href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -102,7 +102,7 @@ export function PracticeRunner({ section, title, kinds, initialKind, topic, intr
     setOutcome(null);
     try {
       const focusType = useFocus && weak[0] && MCQ_KINDS.includes(k) ? weak[0] : undefined;
-      const data = await aiTask('toeflGen', { kind: k, difficulty, focusType, topic });
+      const data = await toeflItem({ kind: k, difficulty, focusType, topic });
       setItem({ kind: k, data, n: Date.now() });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -217,7 +217,7 @@ export function Drill({ section }: { section: Exclude<Section, 'speaking'> }) {
     }
     try {
       const k = kinds[n];
-      setData(await aiTask('toeflGen', { kind: k, difficulty, focusType: weak[0] && MCQ_KINDS.includes(k) ? weak[0] : undefined }));
+      setData(await toeflItem({ kind: k, difficulty, focusType: weak[0] && MCQ_KINDS.includes(k) ? weak[0] : undefined }));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }

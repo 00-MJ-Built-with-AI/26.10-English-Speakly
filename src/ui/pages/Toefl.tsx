@@ -100,6 +100,18 @@ export function ToeflHub() {
             <div className="small muted">Bands, minutes, weak types, next focus</div>
           </span>
         </a>
+        <a className="list-item" href={href('/toefl/bank')} style={{ marginTop: 0 }}>
+          <span className="grow">
+            <b>Question bank and offline packs</b>
+            <div className="small muted">Instant sets, practice without internet</div>
+          </span>
+        </a>
+        <a className="list-item" href={href('/kaust')} style={{ marginTop: 0 }}>
+          <span className="grow">
+            <b>KAUST application coach</b>
+            <div className="small muted">Statement, faculty emails, interview, research pitch</div>
+          </span>
+        </a>
         <a className="list-item" href={href('/toefl/exam-day')} style={{ marginTop: 0 }}>
           <span className="grow">
             <b>Exam-day checklist</b>

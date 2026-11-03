@@ -107,6 +107,20 @@
   answer), weak sounds from TOEFL answers (Azure phonemes) linked to sound drills.
 - Note-taking feedback now from the AI (`notesFeedback`). 52 tests.
 
+## KAUST coach and TOEFL round 4 (2026-11-03)
+- KAUST application coach (`/kaust`, also a tab on the TOEFL pages): applicant profile (program, interests,
+  CV, professors of interest), statement of purpose review with versions (`sopReview`), faculty email
+  writer/improver (`facultyEmail`), faculty interview by voice (tutor kind `research`).
+- Grad-school English: 2-minute research pitch with feedback and three audience questions answered by voice
+  (`pitch`, `qa`); seminar discussion with an AI professor and two classmates (tutor kind `seminar`).
+- Score calibration: an official result is compared with what mocks, section tests and practice predicted;
+  later estimates shift per skill (`calibrate` in `src/engine/toeflSkill.ts`), shown on the Scores page.
+- Question bank (`src/ai/toeflBank.ts`, IndexedDB per device): fresh saved sets start instantly and are
+  replaced in the background; offline or on AI errors, done sets are reused; offline packs of ~37 sets
+  (`/toefl/bank`).
+- Test-style timed tests: app menus hidden, slim header with hide-time toggle and Exit, leave warning.
+- TOEFL section in the progress report (bands, likely ranges, official result, readiness, weak types). 53 tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.

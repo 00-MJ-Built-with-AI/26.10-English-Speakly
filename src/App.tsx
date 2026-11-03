@@ -28,6 +28,8 @@ import { Lessons, SkillHome, ToeflTabs } from './ui/toefl/Skill.tsx';
 import { DictationPractice, ErrorPatterns, GrammarDrills, ImpliedPractice, NotesPractice, ParaphrasePractice, PhraseBank, SpeedReading, SpellingPractice, VocabTrainer } from './ui/toefl/Tools.tsx';
 import { Coach, LongRepeat, QuickAnswers, SpeakingDrill, TopicBank } from './ui/toefl/SpeakingTools.tsx';
 import { EssayPlanner, ExamDay, ToneTrainer, WeeklyReport, WrongReview } from './ui/toefl/Extras.tsx';
+import { QuestionBank } from './ui/toefl/Bank.tsx';
+import { FacultyEmailPage, KaustHome, PitchPage, SeminarPage, SopPage } from './ui/pages/Kaust.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
 import { SettingsPage } from './ui/pages/Settings.tsx';
@@ -132,7 +134,7 @@ const TABS: { to: string; label: string; icon: string; match: string[] }[] = [
   { to: '/path', label: 'Path', icon: 'path', match: ['path', 'unit', 'grammar', 'placement'] },
   { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab', 'retell', 'checkup', 'car', 'idiom', 'numbers', 'opinion', 'story', 'twisters'] },
   { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor', 'debate', 'phone', 'smalltalk', 'interview-prep'] },
-  { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl'] },
+  { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl', 'kaust'] },
   { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements', 'report'] },
 ];
 
@@ -279,6 +281,7 @@ function Shell() {
       else if (b === 'review') page = <WrongReview />;
       else if (b === 'exam-day') page = <ExamDay />;
       else if (b === 'weekly') page = <WeeklyReport />;
+      else if (b === 'bank') page = <QuestionBank />;
       else if (b === 'scores') page = <Scores />;
       else if (b === 'mistakes') page = <Mistakes />;
       else if (b === 'full-mock') {
@@ -289,6 +292,14 @@ function Shell() {
         <>
           <ToeflTabs active={b} />
           {page}
+        </>
+      );
+      break;
+    case 'kaust':
+      page = (
+        <>
+          <ToeflTabs active="kaust" />
+          {b === 'sop' ? <SopPage /> : b === 'email' ? <FacultyEmailPage key={route.query.get('p') ?? ''} professorId={route.query.get('p') ?? undefined} /> : b === 'pitch' ? <PitchPage /> : b === 'seminar' ? <SeminarPage /> : <KaustHome />}
         </>
       );
       break;
@@ -352,7 +363,7 @@ function Shell() {
       </main>
       <nav className="tabbar">
         {TABS.filter((t) => t.to !== '/toefl').map((t) => (
-          <a key={t.to} href={href(t.to)} className={t.match.includes(top) || (t.to === '/practice' && top === 'toefl') ? 'active' : ''}>
+          <a key={t.to} href={href(t.to)} className={t.match.includes(top) || (t.to === '/practice' && (top === 'toefl' || top === 'kaust')) ? 'active' : ''}>
             <Icon name={t.icon} size={22} />
             {t.label}
           </a>

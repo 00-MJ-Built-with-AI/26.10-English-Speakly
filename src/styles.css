@@ -893,3 +893,22 @@ hr {
     break-inside: avoid;
   }
 }
+
+/* Timed tests: hide the app's menus and show a slim test header instead. */
+.exam-mode .topbar,
+.exam-mode .tabbar,
+.exam-mode .toefl-tabs {
+  display: none !important;
+}
+.exam-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}

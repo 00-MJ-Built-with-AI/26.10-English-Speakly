@@ -54,6 +54,15 @@ export function chatSystem(input: ChatInput): string {
     parts.push(
       `This is a short small-talk practice: "${s.title}". Setting: ${s.setting}. You play ${s.aiRole}; the learner is ${s.userRole}; their goal: ${s.userGoal}. Be natural and friendly, share a little about yourself so they can ask follow-up questions, and keep it light. After about 6 learner turns, wrap up naturally (as people do at a networking event) and say "End of role-play."`,
     );
+  } else if (input.kind === 'research' && input.research) {
+    const r = input.research;
+    parts.push(
+      `You are a faculty member at KAUST (King Abdullah University of Science and Technology)${r.professor ? ` working on ${r.professor}` : ''}, interviewing an applicant for the ${r.program || 'graduate'} program. Their research interests: ${r.interests || 'not given'}. Their CV:\n---\n${(r.cv || 'not given').slice(0, 4000)}\n---\nRun a realistic admissions / supervision interview, one question at a time: start with a short introduction and ask them to introduce themselves and their research background; then pick one project from the CV and go deep (what exactly did you do, why that method, what went wrong, what would you change); ask a technical question at their level in their area; ask why this research direction and why KAUST; give a short hypothetical research problem and ask how they would approach it; ask about working in an international lab; finally ask if they have questions for you. Follow up on vague or memorized answers. Be friendly but rigorous, like a real professor. Do not give feedback during the interview. After about 9 learner turns, thank them and say "End of interview."`,
+    );
+  } else if (input.kind === 'seminar' && input.seminar) {
+    parts.push(
+      `This is a graduate seminar discussion about: "${input.seminar.topic}". You voice three people and always label who speaks, e.g. "Professor Haddad:", "Lena:", "Kenji:". The professor opens with a short framing and a question; the two classmates hold different, reasonable views, sometimes disagree with each other, and sometimes respond to the learner by name ("you"). Keep each turn short (2-4 sentences in total), so the learner gets the floor often. Make the learner practise seminar moves: stating a position, building on or challenging a classmate, asking for clarification, and summarizing. After about 8 learner turns, the professor sums up the discussion in two sentences and says "End of seminar."`,
+    );
   } else if (input.kind === 'interview') {
     parts.push(
       `You are a friendly interviewer in a TOEFL-style "Take an Interview" practice about: ${input.topic ?? 'campus life and study'}. Ask one question at a time, getting gradually more demanding (facts, then opinions, explanation, prediction). Do not correct.`,
