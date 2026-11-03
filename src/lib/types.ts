@@ -2,6 +2,7 @@ import type { ChatKind, CorrectionStyle, ErrorItem, Level } from '../../shared/t
 import type { HesitationStats } from '../engine/hesitation.ts';
 import { DEFAULT_VOICE } from '../speech/voices.ts';
 import type { MicCheckResult } from '../engine/audiocheck.ts';
+import type { Section, ToeflScore } from '../engine/toeflScale.ts';
 
 export type { Level, CorrectionStyle, ErrorItem };
 
@@ -104,6 +105,7 @@ export interface UserDoc {
   weeklyFocus?: WeeklyFocus;
   /** Best result per tongue twister id. */
   twisters: Record<string, { accuracy: number; wpm: number }>;
+  toefl: ToeflData;
 }
 
 export function emptyUser(name = ''): UserDoc {
@@ -124,7 +126,30 @@ export function emptyUser(name = ''): UserDoc {
     usage: {},
     onboarded: false,
     twisters: {},
+    toefl: emptyToefl(),
   };
+}
+
+export interface ToeflData {
+  /** Goal on the comparable 0-120 scale (KAUST minimum plus a margin). */
+  target: number;
+  /** The university's published minimum (KAUST: 79). */
+  minimum: number;
+  /** Official results (from score report photos) and full mock estimates, newest first. */
+  scores: ToeflScore[];
+  /** Practice accuracy by question type (Reading and Listening) and task (Writing). */
+  typeStats: Record<string, { right: number; total: number }>;
+  /** Practice points by section, for estimates: share of points earned. */
+  sectionStats: Partial<Record<Section, { points: number; max: number }>>;
+  /** Recent typing speeds (words per minute). */
+  typing: number[];
+  /** Reading/Listening/Writing results waiting for the speaking part of a full mock. */
+  /** A full mock between its written part and the speaking part. */
+  pendingMock?: { at: number; scores30: Partial<Record<Section, number>>; speakingBand?: number };
+}
+
+export function emptyToefl(): ToeflData {
+  return { target: 85, minimum: 79, scores: [], typeStats: {}, sectionStats: {}, typing: [] };
 }
 
 /** Fills in fields added after a user document was first saved. */
@@ -139,6 +164,7 @@ export function migrateUser(u: UserDoc): UserDoc {
     usage: u.usage ?? {},
     onboarded: u.onboarded ?? false,
     twisters: u.twisters ?? {},
+    toefl: { ...emptyToefl(), ...u.toefl },
     // The first default voice was the standard Ava; move to the more natural HD Ava.
     settings: { ...DEFAULT_SETTINGS, ...u.settings, rates: { ...DEFAULT_SETTINGS.rates, ...u.settings?.rates }, voice: u.settings?.voice === 'en-US-AvaMultilingualNeural' ? DEFAULT_VOICE : (u.settings?.voice ?? DEFAULT_VOICE) },
   };

@@ -11,6 +11,10 @@ import type { Attempt } from '../../lib/types.ts';
 import type { Assessment } from '../../speech/index.ts';
 import { Icon } from '../components/Icon.tsx';
 import { ExamCard } from '../components/ExamCard.tsx';
+import { weakTypes } from '../../engine/toeflPlan.ts';
+import { GapCard } from '../toefl/Scores.tsx';
+
+type IconName = Parameters<typeof Icon>[0]['name'];
 import { MicControl, PlayBlob, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 
 const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -24,65 +28,89 @@ export function ToeflHub() {
     repo.list<Attempt>('attempts', { limit: 500 }).then((a) => setHistory(a.filter((x) => x.kind === 'toefl')));
   }, [repo]);
   const overall = overallSpeaking(user);
+  const t = user.toefl;
+  const latest = t.scores[0];
+  const lastOfficial = t.scores.find((s) => s.source === 'official');
+  const weak = weakTypes(t.typeStats);
+  const recentTyping = t.typing.slice(-5);
+  const typingAvg = recentTyping.length ? Math.round(avg(recentTyping)) : null;
+  const tiles: { to: string; icon: IconName; title: string; desc: string }[] = [
+    { to: '/toefl/reading', icon: 'book', title: 'Reading', desc: 'Complete the Words, Daily Life, Academic Passage' },
+    { to: '/toefl/listening', icon: 'ear', title: 'Listening', desc: 'Choose a Response, Conversation, Announcement, Talk' },
+    { to: '/toefl/writing', icon: 'spark', title: 'Writing', desc: 'Build a Sentence, Email, Academic Discussion' },
+    { to: '/toefl/repeat', icon: 'repeat', title: 'Speaking: Listen and Repeat', desc: 'Word-by-word feedback' },
+    { to: '/toefl/interview', icon: 'chat', title: 'Speaking: Take an Interview', desc: 'Band and feedback for every answer' },
+    { to: '/toefl/typing', icon: 'bolt', title: 'Typing practice', desc: typingAvg != null ? `Recent average ${typingAvg} wpm, aim for 35+` : 'No spellcheck or dictation on the test' },
+    { to: '/toefl/scores', icon: 'target', title: 'My scores and plan', desc: lastOfficial ? `Official ${lastOfficial.date}: band ${lastOfficial.overall.toFixed(1)}` : 'Add your result after the exam' },
+    { to: '/toefl/mistakes', icon: 'chart', title: 'Mistake log', desc: weak.length ? `Weakest: ${weak.slice(0, 2).join(', ')}` : 'Accuracy by question type' },
+  ];
   return (
     <div className="stack">
-      <h1>TOEFL iBT speaking (2026 format)</h1>
-      <div className="grid grid-2">
-        <div className="card">
-          <div className="section-title">Your estimate</div>
-          <div className="row" style={{ alignItems: 'baseline' }}>
-            <span style={{ fontSize: '2.6rem', fontWeight: 800, color: 'var(--brand)' }}>{bandText(user.toeflBand ?? (overall != null ? toeflBandOf(overall) : null))}</span>
-            <span className="muted">/ 6</span>
-          </div>
-          <p className="small muted">{user.toeflBand != null ? 'From your TOEFL practice.' : overall != null ? 'Estimated from your skill scores. Take a mock test for a real estimate.' : 'Take a mock test to get an estimate.'}</p>
-        </div>
-        <div className="card small">
-          <div className="section-title">The test</div>
-          <p>About 8 minutes, scored by AI on a 1-6 scale (matched to CEFR A1-C2).</p>
-          <p>
-            <b>Listen and Repeat</b>: 7 sentences about campus life, heard once, getting longer. Repeat each one exactly.
-          </p>
+      <h1>TOEFL iBT (2026 format)</h1>
+      {latest ? (
+        <GapCard score={latest} />
+      ) : (
+        <div className="card stack">
+          <h3 style={{ margin: 0 }}>Goal: KAUST</h3>
           <p style={{ margin: 0 }}>
-            <b>Take an Interview</b>: 4 questions on one topic, getting harder. 45 seconds each, no preparation.
+            KAUST asks for TOEFL iBT {t.minimum}; your target is <b>{t.target}</b> for a safety margin. Add your score report after the exam, or take a full mock test, to get a
+            section-by-section gap and a daily plan.
           </p>
+          <a className="btn" href={href('/toefl/scores')} style={{ alignSelf: 'flex-start' }}>
+            <Icon name="target" size={16} /> Add my score
+          </a>
         </div>
-      </div>
+      )}
+      {t.pendingMock && (
+        <div className="banner info">
+          A mock test is waiting for its Speaking part. <a href={href('/toefl/full-mock?finish=1')}>Finish it</a>
+        </div>
+      )}
       <ExamCard history={history} />
-      <button className="btn primary big" onClick={() => go('/toefl/mock')}>
-        <Icon name="trophy" /> Full mock test (about 8 min)
-      </button>
       <div className="grid grid-2">
-        <a className="list-item" href={href('/toefl/repeat')} style={{ marginTop: 0 }}>
-          <span className="icon-tile">
-            <Icon name="repeat" />
-          </span>
-          <span className="grow">
-            <b>Practise Listen and Repeat</b>
-            <div className="small muted">With replays and word-by-word feedback</div>
-          </span>
-        </a>
-        <a className="list-item" href={href('/toefl/interview')} style={{ marginTop: 0 }}>
-          <span className="icon-tile">
-            <Icon name="chat" />
-          </span>
-          <span className="grow">
-            <b>Practise Take an Interview</b>
-            <div className="small muted">Band and feedback for every answer</div>
-          </span>
-        </a>
+        <button className="btn primary big" onClick={() => go('/toefl/full-mock')}>
+          <Icon name="trophy" /> Full mock test (about 75 min)
+        </button>
+        <button className="btn big" onClick={() => go('/toefl/mock')}>
+          <Icon name="mic" /> Speaking-only mock (8 min)
+        </button>
+      </div>
+      <div className="grid grid-2">
+        {tiles.map((x) => (
+          <a key={x.to} className="list-item" href={href(x.to)} style={{ marginTop: 0 }}>
+            <span className="icon-tile">
+              <Icon name={x.icon} />
+            </span>
+            <span className="grow">
+              <b>{x.title}</b>
+              <div className="small muted">{x.desc}</div>
+            </span>
+          </a>
+        ))}
+      </div>
+      <div className="card small">
+        <div className="section-title">Speaking estimate</div>
+        <span style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--brand)' }}>{bandText(user.toeflBand ?? (overall != null ? toeflBandOf(overall) : null))}</span> <span className="muted">/ 6</span>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          The 2026 test has four sections, each scored 1-6 in half bands; the overall band is their average. Score reports also show a comparable 0-120 total, which is what KAUST's {t.minimum} refers to.
+        </p>
       </div>
       {history.length > 0 && (
         <div className="card">
           <h3>Recent results</h3>
-          {history.slice(0, 10).map((h, k) => (
-            <div key={k} className="spread" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-              <span>{h.title}</span>
-              <span className="row">
-                <span className="small muted">{new Date(h.at).toLocaleDateString()}</span>
-                <span className="chip brand">{bandText((h.detail as { band?: number })?.band ?? null)}</span>
-              </span>
-            </div>
-          ))}
+          {history.slice(0, 10).map((h, k) => {
+            const d = h.detail as { band?: number; overall?: number; points?: number; max?: number } | undefined;
+            const v = d?.band ?? d?.overall;
+            return (
+              <div key={k} className="spread" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                <span>{h.title}</span>
+                <span className="row">
+                  <span className="small muted">{new Date(h.at).toLocaleDateString()}</span>
+                  <span className="chip brand">{v != null ? bandText(v) : d?.max ? `${Number(d.points).toFixed(d.max === 5 ? 1 : 0)}/${d.max}` : '–'}</span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -363,7 +391,12 @@ export function ToeflInterview({ mock }: { mock: boolean }) {
         scores: real.length ? { pronunciation: avg(real.map((a) => a.pron)), fluency: avg(real.map((a) => fluencyScore(a, true))) } : {},
         detail: { band: overall, repeat: repeatB, interview: bands },
       });
-      if (overall != null) app.update((u) => (u.toeflBand = u.toeflBand == null ? overall : Math.round((u.toeflBand * 0.6 + overall * 0.4) * 2) / 2));
+      if (overall != null)
+        app.update((u) => {
+          u.toeflBand = u.toeflBand == null ? overall : Math.round((u.toeflBand * 0.6 + overall * 0.4) * 2) / 2;
+          // Part of a full mock: hand the speaking band back to it.
+          if (mock && u.toefl.pendingMock) u.toefl.pendingMock.speakingBand = overall;
+        });
       await app.addMistakes(
         scores.flatMap((s) => s?.corrections ?? []).map((c) => ({ kind: c.kind, said: c.original, better: c.corrected, why: c.explanation })),
         'TOEFL interview',
@@ -440,7 +473,12 @@ export function ToeflInterview({ mock }: { mock: boolean }) {
           );
         })}
         <div className="row">
-          <a className="btn primary" href={href('/toefl')}>
+          {mock && app.user.toefl.pendingMock?.speakingBand != null && (
+            <button className="btn primary" onClick={() => go('/toefl/full-mock?finish=1')}>
+              <Icon name="trophy" size={16} /> See your full mock result
+            </button>
+          )}
+          <a className={`btn ${mock && app.user.toefl.pendingMock ? '' : 'primary'}`} href={href('/toefl')}>
             TOEFL home
           </a>
         </div>

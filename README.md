@@ -9,7 +9,9 @@ and progress, Azure AI Speech for pronunciation scoring and the tutor's voice, C
 - **Practice**: shadowing, read-aloud, sound drills for Arabic speakers (p/b, v/f, th, short vowels,
   American r, clusters, stress, intonation), speak-fast drills against hesitation, role-plays.
 - **Tutor**: hands-free voice conversation (or push-to-talk), light corrections during, full report after.
-- **TOEFL**: Listen and Repeat, Take an Interview, full mock, band estimate on the 1-6 scale.
+- **TOEFL**: all four 2026 sections (Reading, Listening, Writing, Speaking) with AI-written items, a
+  timed adaptive full mock, typing practice, a mistake log by question type, and score-report photo
+  reading with a section-by-section plan to the KAUST requirement (79, target 85).
 - **More practice**: fast-track level test, daily speaking journal, "say it better" from Arabic,
   personal phrase bank, your own texts, filler and pause tracker, intonation graph, mouth diagrams.
 - **Conversation modes**: debate, phone calls, small talk, job interview from your CV; the tutor

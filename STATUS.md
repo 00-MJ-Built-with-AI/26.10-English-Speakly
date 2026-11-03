@@ -67,6 +67,21 @@
 - Numbers and spelling (`/numbers`), 60-second opinion with structure coach (`/opinion`), story builder
   (`/story`), tongue twisters by weakest sound with speed levels (`/twisters`). 38 unit tests.
 
+## TOEFL for KAUST (2026-11-03)
+- All four sections in the 2026 format. AI writes original items (`toeflGen`): Complete the Words, Read in
+  Daily Life, Academic Passage, Choose a Response, Conversation, Announcement, Academic Talk, Build a
+  Sentence, Email, Academic Discussion. Practice at `/toefl/reading|listening|writing?task=...` with
+  lower/standard/upper difficulty and answers with explanations.
+- Writing scored 0-5 with the ETS-style rubric (`toeflWrite`); typed only, no spellcheck or pasting.
+  Typing practice (`/toefl/typing`) with wpm and accuracy.
+- Scores (`/toefl/scores`): photo of the score report read by the AI (`scoreReport`), confirm or type the
+  numbers. Band <-> 0-30 concordance from ETS (`src/engine/toeflScale.ts`).
+- KAUST goal: minimum 79, target 85 by default (both editable). Gap per section and a day-by-day plan up
+  to the next exam date (`src/engine/toeflPlan.ts`).
+- Full mock (`/toefl/full-mock`): timed Reading and Listening with two-stage adaptive modules, Writing,
+  then the speaking mock; saves an estimated score and compares it with the goal.
+- Mistake log (`/toefl/mistakes`): accuracy by question type, weak types feed the practice sets. 44 unit tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.
@@ -75,6 +90,8 @@
 - Arabic recognition for "Say it better" and the intonation graph on real recordings (need Azure + mic).
 - Passing a level in the fast-track test (needs real speech; logic is unit-tested).
 - HD voices on the user's Azure resource; phone-line filter on real Azure audio; car mode on a phone.
+- TOEFL items, writing scores and score-report reading with the real Claude API (test mode uses fixed
+  samples); how close mock estimates are to real results.
 - Spending numbers against real Anthropic/Azure bills (Azure rates are editable estimates); the mic check
   thresholds on a real microphone.
 

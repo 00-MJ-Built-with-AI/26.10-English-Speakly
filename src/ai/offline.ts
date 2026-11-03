@@ -4,6 +4,7 @@
  */
 import type { ChatInput, ErrorItem, GenerateOutputs, TaskMap, TaskName } from '../../shared/tasks.ts';
 import { countWords, wordAccuracy, words } from '../engine/text.ts';
+import { TOEFL_SAMPLES } from './toeflOffline.ts';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -248,6 +249,37 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         corrections: findErrors(t),
       } as TaskMap[K][1];
     }
+    case 'toeflGen':
+      return structuredClone(TOEFL_SAMPLES[(i.kind as keyof typeof TOEFL_SAMPLES) ?? 'daily']) as TaskMap[K][1];
+    case 'toeflWrite': {
+      const t = String(i.text ?? '');
+      const n = countWords(t);
+      const errs = findErrors(t);
+      return {
+        score: Math.max(0, Math.min(5, Math.round((n / (i.task === 'email' ? 30 : 25) - errs.length * 0.5) * 2) / 2)),
+        summary: `(Test mode) ${n} words. Real rubric scoring appears once the AI key is added.`,
+        strengths: n > 80 ? ['Good length.'] : [],
+        improvements: ['Cover every required point with one or two full sentences each.'],
+        corrections: errs,
+        model: '(Test mode) A model answer appears with the AI key.',
+      } as TaskMap[K][1];
+    }
+    case 'scoreReport':
+      return {
+        found: false,
+        testDate: null,
+        overall: null,
+        reading: null,
+        listening: null,
+        writing: null,
+        speaking: null,
+        total0to120: null,
+        reading30: null,
+        listening30: null,
+        writing30: null,
+        speaking30: null,
+        notes: '(Test mode) Reading photos needs the AI key. Type your scores in the form instead.',
+      } as TaskMap[K][1];
     case 'define':
       return { meaning: '(Test mode) Add the AI key to get meanings automatically.', example: String(i.phrase ?? '') } as TaskMap[K][1];
     case 'weekly':

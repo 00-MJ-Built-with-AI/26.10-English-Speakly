@@ -37,6 +37,8 @@ import {
 } from '../shared/tasks.js';
 import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
 import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.js';
+import { GEN, ScoreReport, WritingScore, type ScoreReportInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
+import { TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
 
 const MODEL = process.env.TUTOR_MODEL || 'claude-opus-5-5';
 /** Anthropic picks a fallback model if a request is declined by a safety classifier. */
@@ -107,11 +109,16 @@ function chat(input: ChatInput): Response {
   return new Response(body, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
 
-async function structured<S extends z.ZodType>(schema: S, prompt: string, effort: 'low' | 'medium'): Promise<z.infer<S>> {
+async function structured<S extends z.ZodType>(
+  schema: S,
+  prompt: string | Anthropic.Beta.BetaContentBlockParam[],
+  effort: 'low' | 'medium',
+  system = TASK_SYSTEM,
+): Promise<z.infer<S>> {
   const res = await anthropic().beta.messages.parse({
     model: MODEL,
     max_tokens: 8000,
-    system: TASK_SYSTEM,
+    system,
     output_config: { effort, format: betaZodOutputFormat(schema) },
     messages: [{ role: 'user', content: prompt }],
     ...FALLBACK(),
@@ -188,6 +195,24 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
       OpinionResult,
       `60-second opinion answer, learner level ${i.level}. Question: "${i.question}". They spoke for ${Math.round(i.seconds)} seconds. Transcript: "${i.transcript}"\n\nCheck the structure: a clear point, a reason, a concrete example, and a conclusion. Count a part as present only if it is really there; quote the learner's words for it. Then give a band and feedback.`,
       'medium',
+    ),
+  toeflGen: (i: ToeflGenInput) => {
+    const schema = GEN[i.kind];
+    if (!schema) throw new HttpError(400, 'Unknown TOEFL task');
+    return structured(schema as z.ZodType, toeflGenPrompt(i), 'low', TOEFL_ITEM_SYSTEM);
+  },
+  toeflWrite: (i: WritingInput) => structured(WritingScore, writingPrompt(i), 'medium'),
+  scoreReport: (i: ScoreReportInput) =>
+    structured(
+      ScoreReport,
+      [
+        { type: 'image', source: { type: 'base64', media_type: i.mediaType, data: i.image } },
+        {
+          type: 'text',
+          text: 'This should be a photo or screenshot of a TOEFL iBT score report (new 2026 format: section and overall scores on a 1-6 band scale, and possibly comparable 0-30 section scores and a 0-120 total). Read the numbers exactly as printed. Use null for anything not visible; never guess.',
+        },
+      ],
+      'low',
     ),
   weekly: (i: WeeklyInput) =>
     structured(WeeklyResult, `Write this learner's weekly speaking report from these numbers:\n${json(i)}\nBe specific, warm and brief.`, 'low'),

@@ -19,6 +19,11 @@ import { Roleplays } from './ui/pages/Roleplays.tsx';
 import { Tutor } from './ui/pages/Tutor.tsx';
 import { Review } from './ui/pages/Review.tsx';
 import { ToeflHub, ToeflRepeat, ToeflInterview } from './ui/pages/Toefl.tsx';
+import { SectionPractice } from './ui/toefl/Practice.tsx';
+import { Typing } from './ui/toefl/Typing.tsx';
+import { Scores } from './ui/toefl/Scores.tsx';
+import { Mistakes } from './ui/toefl/Mistakes.tsx';
+import { FullMock } from './ui/toefl/FullMock.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
 import { SettingsPage } from './ui/pages/Settings.tsx';
@@ -240,7 +245,16 @@ function Shell() {
       page = <Tutor query={route.query} />;
       break;
     case 'toefl':
-      page = b === 'repeat' ? <ToeflRepeat mock={false} /> : b === 'interview' ? <ToeflInterview mock={false} /> : b === 'mock' ? <ToeflRepeat mock /> : b === 'mock-interview' ? <ToeflInterview mock /> : <ToeflHub />;
+      if (b === 'reading' || b === 'listening' || b === 'writing') {
+        const task = route.query.get('task') ?? undefined;
+        page = <SectionPractice key={`${b}-${task}`} section={b} task={task} />;
+      } else if (b === 'typing') page = <Typing />;
+      else if (b === 'scores') page = <Scores />;
+      else if (b === 'mistakes') page = <Mistakes />;
+      else if (b === 'full-mock') {
+        const finish = route.query.get('finish') === '1';
+        page = <FullMock key={String(finish)} finish={finish} />;
+      } else page = b === 'repeat' ? <ToeflRepeat mock={false} /> : b === 'interview' ? <ToeflInterview mock={false} /> : b === 'mock' ? <ToeflRepeat mock /> : b === 'mock-interview' ? <ToeflInterview mock /> : <ToeflHub />;
       break;
     case 'progress':
       page = <ProgressPage />;
