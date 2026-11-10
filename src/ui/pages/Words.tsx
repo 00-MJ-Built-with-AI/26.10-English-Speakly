@@ -22,6 +22,10 @@ import {
   type QuizQuestion,
   type WordCard,
   type WordsData,
+  checkWritten,
+  gapSentence,
+  spelled,
+  type WriteResult,
 } from '../../engine/words.ts';
 import { go, href } from '../../lib/router.ts';
 import { useApp } from '../../lib/store.tsx';
@@ -58,7 +62,7 @@ export function WordsHome() {
     <div className="stack">
       <h1>5,000 most used words</h1>
       <p className="muted" style={{ margin: 0 }}>
-        In order of how often English uses them. Each word comes in a short paragraph with its meaning in English and Arabic.
+        In order of how often English uses them. Each word comes with example sentences and its meaning in English and Arabic.
       </p>
       {packs && packs.size < PACKS && (
         <div className="banner">
@@ -104,25 +108,30 @@ export function WordsHome() {
             {counts.known} known · {counts.learning} in review · {counts.learned} learned
           </span>
         </div>
-        {MILESTONES.map((m) => {
-          const s = seenUpTo(w.items, m);
-          return (
-            <div key={m}>
-              <div className="spread small">
-                <span style={m === next ? { fontWeight: 700 } : undefined}>First {m.toLocaleString()} words</span>
-                <span className={s === m ? '' : 'muted'} style={s === m ? { color: 'var(--good)' } : undefined}>
-                  {s === m ? '✓' : `${s} / ${m}`}
-                </span>
-              </div>
-              <div className="bar">
-                <span style={{ width: `${(s / m) * 100}%`, background: s === m ? 'var(--good)' : undefined }} />
-              </div>
-            </div>
-          );
-        })}
+        <div>
+          <div className="spread small">
+            <b>Next milestone: {next.toLocaleString()} words</b>
+            <span className="muted">
+              {seenUpTo(w.items, next) - (next - PACK_SIZE) > 0 ? seenUpTo(w.items, next) - (next - PACK_SIZE) : 0} / {PACK_SIZE}
+            </span>
+          </div>
+          <div className="bar">
+            <span style={{ width: `${(Math.max(0, seenUpTo(w.items, next) - (next - PACK_SIZE)) / PACK_SIZE) * 100}%` }} />
+          </div>
+        </div>
+        <div>
+          <div className="spread small">
+            <span>All {TOTAL_WORDS.toLocaleString()} words</span>
+            <span className="muted">{counts.seen.toLocaleString()}</span>
+          </div>
+          <div className="bar">
+            <span style={{ width: `${(counts.seen / TOTAL_WORDS) * 100}%` }} />
+          </div>
+        </div>
+        <div className="small muted">{MILESTONES.filter((m) => seenUpTo(w.items, m) === m).length} of {MILESTONES.length} milestones reached. Every pack of 100 below is one milestone.</div>
       </div>
       <div className="card">
-        <h3>Packs of 100</h3>
+        <h3>Milestones: every 100 words</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(92px, 1fr))', gap: 8 }}>
           {Array.from({ length: PACKS }, (_, k) => k + 1).map((p) => {
             const [from, to] = packRange(p);
@@ -265,6 +274,145 @@ function SayIt({ reference, label }: { reference: string; label: string }) {
 }
 
 /** The word in context, English meaning, Arabic meaning, other meanings, listening and speaking. */
+/** Reads the word letter by letter and shows the letters while it does. */
+function SpellButton({ word }: { word: string }) {
+  const { speak, speaking } = useSpeak();
+  const [on, setOn] = useState(false);
+  return (
+    <>
+      <button
+        className="btn small"
+        disabled={speaking}
+        onClick={async () => {
+          setOn(true);
+          await speak(spelled(word), 0.75);
+          setOn(false);
+        }}
+      >
+        <Icon name="spark" size={14} /> Spell it
+      </button>
+      {on && (
+        <span className="chip brand" style={{ letterSpacing: '0.35em', fontWeight: 700 }}>
+          {word.toUpperCase()}
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * Lingvist-style: the meaning in English and Arabic and a sentence with a gap; type the word.
+ * A miss shows the answer, and it must be typed correctly once before moving on.
+ */
+function WriteWord({ card, onDone, onKnown }: { card: WordCard; onDone: (firstTry: boolean) => void; onKnown?: () => void }) {
+  const gap = useMemo(() => gapSentence(card), [card]);
+  const [typed, setTyped] = useState('');
+  const [hint, setHint] = useState(1);
+  const [result, setResult] = useState<WriteResult | null>(null);
+  const [missed, setMissed] = useState(false);
+  const [mustRetype, setMustRetype] = useState(false);
+  const input = useRef<HTMLInputElement | null>(null);
+  useEffect(() => input.current?.focus(), [mustRetype]);
+  const shown = gap.answer.slice(0, Math.min(hint, gap.answer.length));
+  function check() {
+    if (!typed.trim()) return;
+    const r = checkWritten(typed, gap.answer, card.word);
+    setResult(r);
+    const ok = r === 'right' || r === 'base';
+    if (ok) {
+      // Using a hint, or a miss earlier, means it was not right on the first try.
+      setTimeout(() => onDone(!missed && hint <= 1 && !mustRetype), 700);
+      return;
+    }
+    setMissed(true);
+    if (r === 'wrong' || r === 'almost') {
+      setMustRetype(true);
+      setTyped('');
+    }
+  }
+  function giveUp() {
+    setMissed(true);
+    setMustRetype(true);
+    setResult('wrong');
+    setTyped('');
+  }
+  const ok = result === 'right' || result === 'base';
+  return (
+    <div className="stack">
+      <div className="small muted">Write the word</div>
+      <div style={{ fontSize: '1.15rem' }}>{card.english}</div>
+      {card.arabic && (
+        <div dir="rtl" lang="ar" style={{ textAlign: 'right', fontSize: '1.3rem', fontWeight: 700 }}>
+          {card.arabic}
+        </div>
+      )}
+      <p style={{ margin: 0, lineHeight: 2, fontSize: '1.1rem' }}>
+        {gap.before}
+        <span
+          style={{
+            display: 'inline-block',
+            minWidth: `${Math.max(3, gap.answer.length) * 0.65 + 0.6}em`,
+            borderBottom: `2px solid ${ok ? 'var(--good)' : mustRetype ? 'var(--bad)' : 'var(--brand)'}`,
+            fontWeight: 700,
+            color: ok ? 'var(--good)' : undefined,
+          }}
+        >
+          {ok ? gap.answer : mustRetype ? <span style={{ color: 'var(--bad)' }}>{gap.answer}</span> : shown + '…'}
+        </span>
+        {gap.after}
+      </p>
+      {!ok && (
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            check();
+          }}
+        >
+          <input
+            ref={input}
+            value={typed}
+            onChange={(e) => (setTyped(e.target.value), setResult(null))}
+            placeholder={mustRetype ? 'Type it correctly once' : 'Type the word'}
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            style={{ flex: 1, minWidth: 160, fontSize: '1.1rem' }}
+            aria-label="Your answer"
+          />
+          <button className="btn primary" type="submit" disabled={!typed.trim()}>
+            Check
+          </button>
+        </form>
+      )}
+      {result === 'almost' && <div className="banner">Almost: check the spelling. It is “{gap.answer}”.</div>}
+      {result === 'wrong' && <div className="banner error">The word is “{gap.answer}”. Type it once to remember the spelling.</div>}
+      {result === 'base' && <div className="banner info">Right word. In this sentence it is “{gap.answer}”.</div>}
+      {result === 'right' && <div className="banner info">Correct!</div>}
+      {!ok && (
+        <div className="row">
+          {!mustRetype && hint < gap.answer.length && (
+            <button className="btn small ghost" onClick={() => setHint((h) => h + 1)}>
+              Hint
+            </button>
+          )}
+          {!mustRetype && (
+            <button className="btn small ghost" onClick={giveUp}>
+              Show me
+            </button>
+          )}
+          {onKnown && !missed && hint <= 1 && (
+            <button className="btn small ghost" onClick={onKnown}>
+              <Icon name="check" size={14} /> I know this
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CardBody({ card }: { card: WordCard }) {
   const { speak, speaking, stop } = useSpeak();
   const sentence = useMemo(() => keySentence(card.paragraph), [card]);
@@ -278,6 +426,7 @@ function CardBody({ card }: { card: WordCard }) {
         <button className="btn small" aria-label={`Hear ${card.word}`} onClick={() => speak(card.word, 0.85)}>
           <Icon name="volume" size={14} />
         </button>
+        <SpellButton word={card.word} />
       </div>
       <div className="soft stack">
         <Paragraph text={card.paragraph} />
@@ -294,10 +443,12 @@ function CardBody({ card }: { card: WordCard }) {
         <div className="section-title">English</div>
         {card.english}
       </div>
-      <div dir="rtl" lang="ar" style={{ textAlign: 'right' }}>
-        <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{card.arabic}</div>
-        <div style={{ lineHeight: 1.8 }}>{card.arabicDesc}</div>
-      </div>
+      {card.arabic && (
+        <div dir="rtl" lang="ar" style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{card.arabic}</div>
+          {card.arabicDesc && <div style={{ lineHeight: 1.8 }}>{card.arabicDesc}</div>}
+        </div>
+      )}
       {card.other.length > 0 && (
         <div className="small stack" style={{ gap: 6 }}>
           <div className="section-title">Other meanings</div>
@@ -318,6 +469,19 @@ function CardBody({ card }: { card: WordCard }) {
         <SayIt key={`w-${card.rank}`} reference={card.word} label="Say the word" />
         <SayIt key={`s-${card.rank}`} reference={sentence} label="Say the sentence" />
       </div>
+      {card.source === 'open' && (
+        <div className="small faint">
+          Example sentences from{' '}
+          <a href="https://tatoeba.org" target="_blank" rel="noreferrer">
+            Tatoeba
+          </a>{' '}
+          (CC BY 2.0 FR); meanings and Arabic from{' '}
+          <a href="https://en.wiktionary.org" target="_blank" rel="noreferrer">
+            Wiktionary
+          </a>{' '}
+          (CC BY-SA).
+        </div>
+      )}
     </div>
   );
 }
@@ -333,6 +497,7 @@ export function WordsLearn({ pack }: { pack?: number }) {
   const [phase, setPhase] = useState<'cards' | 'quiz' | 'done'>('cards');
   const [error, setError] = useState<string | null>(null);
   const [skipped, setSkipped] = useState(0);
+  const [written, setWritten] = useState(false);
   const goal = useRef(Math.max(pack ? Math.min(w.daily, PACK_SIZE) : w.daily - learnedToday(w), pack ? 1 : Math.min(10, w.daily)));
   const items = useRef(w.items);
   items.current = w.items;
@@ -348,6 +513,7 @@ export function WordsLearn({ pack }: { pack?: number }) {
     try {
       const [c] = await loadCards([rank]);
       setCard(c);
+      setWritten(false);
       setError(null);
       window.scrollTo(0, 0);
     } catch (e) {
@@ -422,14 +588,22 @@ export function WordsLearn({ pack }: { pack?: number }) {
       {error && <div className="banner error">{error}</div>}
       {card && (
         <div className="card fade-in" key={card.rank}>
-          <CardBody card={card} />
+          {!written ? (
+            <WriteWord card={card} onDone={() => setWritten(true)} onKnown={known} />
+          ) : (
+            <CardBody card={card} />
+          )}
           <div className="row" style={{ marginTop: 16 }}>
-            <button className="btn primary" onClick={gotIt}>
-              Next <Icon name="next" size={14} />
-            </button>
-            <button className="btn" onClick={known}>
-              <Icon name="check" size={14} /> I know this
-            </button>
+            {written && (
+              <button className="btn primary" onClick={gotIt} autoFocus>
+                Next <Icon name="next" size={14} />
+              </button>
+            )}
+            {written && (
+              <button className="btn" onClick={known}>
+                <Icon name="check" size={14} /> I knew this
+              </button>
+            )}
             {studied.length > 0 && (
               <button className="btn ghost" onClick={() => setPhase('quiz')}>
                 Finish now
@@ -556,5 +730,48 @@ export function WordsReview() {
     );
   }
   if (!cards) return <div className="muted">Loading…</div>;
-  return <Quiz title="Word review" cards={cards} onDone={finish} />;
+  return <WriteReview cards={cards} onDone={finish} />;
+}
+
+/** Reviews by writing each word; right on the first try counts as known for spacing. */
+function WriteReview({ cards, onDone }: { cards: WordCard[]; onDone: (first: Map<number, boolean>) => void }) {
+  const [i, setI] = useState(0);
+  const [answered, setAnswered] = useState(false);
+  const first = useRef(new Map<number, boolean>());
+  const card = cards[i];
+  function next() {
+    if (i + 1 >= cards.length) return onDone(first.current);
+    setAnswered(false);
+    setI(i + 1);
+    window.scrollTo(0, 0);
+  }
+  return (
+    <div className="stack">
+      <h1>Word review</h1>
+      <div className="small muted">
+        {i + 1} of {cards.length}
+      </div>
+      <div className="bar">
+        <span style={{ width: `${(i / cards.length) * 100}%` }} />
+      </div>
+      <div className="card fade-in" key={card.rank}>
+        {!answered ? (
+          <WriteWord
+            card={card}
+            onDone={(ok) => {
+              first.current.set(card.rank, ok);
+              setAnswered(true);
+            }}
+          />
+        ) : (
+          <CardBody card={card} />
+        )}
+        {answered && (
+          <button className="btn primary" onClick={next} style={{ marginTop: 16 }} autoFocus>
+            {i + 1 < cards.length ? 'Next' : 'Finish'} <Icon name="next" size={14} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }

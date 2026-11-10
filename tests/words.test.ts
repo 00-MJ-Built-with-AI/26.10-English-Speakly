@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import listJson from '../public/words/list.json';
 import packJson from '../public/words/pack-01.json';
-import { dayNumber, dueRanks, gradeWord, keySentence, KNOWN, makeQuestion, nextNew, packOf, packRange, seenInPack, type WordCard, type WordState } from '../src/engine/words.ts';
+import { checkWritten, dayNumber, dueRanks, gapSentence, gradeWord, keySentence, KNOWN, makeQuestion, spelled, nextNew, packOf, packRange, seenInPack, type WordCard, type WordState } from '../src/engine/words.ts';
 
 const list: string[] = listJson;
 const pack1: Omit<WordCard, 'rank'>[] = packJson;
@@ -71,5 +71,22 @@ describe('word course', () => {
   });
   it('picks the sentence that has the word for reading aloud', () => {
     expect(keySentence('It rained. We found a **place** to sleep. It was warm.')).toBe('We found a place to sleep.');
+  });
+});
+
+describe('writing the word', () => {
+  const card = { rank: 300, word: 'acquire', pos: 'verb', academic: true, paragraph: 'How easily one **acquires** bad habits! They went to **acquire** culture.', english: 'to get', arabic: 'يكتسب', arabicDesc: '', other: [] };
+  it('blanks the word in its first sentence', () => {
+    expect(gapSentence(card)).toEqual({ before: 'How easily one ', answer: 'acquires', after: ' bad habits!' });
+  });
+  it('accepts the sentence form or the base form, and spots one-letter slips', () => {
+    expect(checkWritten(' Acquires ', 'acquires', 'acquire')).toBe('right');
+    expect(checkWritten('acquire', 'acquires', 'acquire')).toBe('base');
+    expect(checkWritten('aquires', 'acquires', 'acquire')).toBe('almost');
+    expect(checkWritten('get', 'acquires', 'acquire')).toBe('wrong');
+    expect(spelled('cat')).toBe('C, A, T');
+  });
+  it('can blank a word in every card', () => {
+    for (const c of cards) expect(gapSentence(c).answer.length).toBeGreaterThan(0);
   });
 });

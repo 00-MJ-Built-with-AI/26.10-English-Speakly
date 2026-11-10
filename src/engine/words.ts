@@ -4,7 +4,8 @@ import { INTERVALS, LEARNED_BOX, startOfDay } from './srs.ts';
 export const TOTAL_WORDS = 5000;
 export const PACK_SIZE = 100;
 export const PACKS = TOTAL_WORDS / PACK_SIZE;
-export const MILESTONES = [100, 200, 500, 1000, 2000, 3000, 4000, 5000];
+/** A milestone every 100 words, up to 5,000. */
+export const MILESTONES = Array.from({ length: PACKS }, (_, k) => (k + 1) * PACK_SIZE);
 export const KNOWN = -1;
 
 export interface WordCard {
@@ -19,6 +20,8 @@ export interface WordCard {
   arabic: string;
   arabicDesc: string;
   other: { meaning: string; example: string; arabic: string }[];
+  /** 'open': example sentences from Tatoeba and meanings from Wiktionary (credited on the card). */
+  source?: 'open';
 }
 
 /** box: KNOWN, or 0-6 (6 = learned for good); due is a day number. */
@@ -127,14 +130,15 @@ const blank = (paragraph: string) => paragraph.replace(/\*\*[^*]+\*\*/g, '_____'
 /** One question for a word; the kind rotates by rank and `turn`. Wrong options come from other words in the pool. */
 export function makeQuestion(card: WordCard, pool: WordCard[], turn = 0): QuizQuestion {
   const kinds: QuizKind[] = ['meaning', 'arabic', 'cloze'];
-  const kind = kinds[(card.rank + turn) % 3];
+  let kind = kinds[(card.rank + turn) % 3];
+  if (kind === 'arabic' && !card.arabic) kind = 'meaning';
   const value = (c: WordCard) => (kind === 'meaning' ? c.english : kind === 'arabic' ? c.arabic : c.word);
   const right = value(card);
   const seen = new Set([right]);
   const wrong: string[] = [];
   for (const c of shuffled(pool, hash(card.word) + turn)) {
     const v = value(c);
-    if (c.rank === card.rank || seen.has(v)) continue;
+    if (c.rank === card.rank || !v || seen.has(v)) continue;
     seen.add(v);
     wrong.push(v);
     if (wrong.length === 3) break;
@@ -143,3 +147,38 @@ export function makeQuestion(card: WordCard, pool: WordCard[], turn = 0): QuizQu
   const prompt = kind === 'cloze' ? blank(card.paragraph) : card.word;
   return { rank: card.rank, kind, prompt, options, answer: options.indexOf(right) };
 }
+
+/** The first sentence with the marked word, split around it: the gap the learner types into. */
+export function gapSentence(card: WordCard): { before: string; answer: string; after: string } {
+  const sentences = card.paragraph.match(/[^.!?]+[.!?]+/g) ?? [card.paragraph];
+  const s = (sentences.find((x) => x.includes('**')) ?? card.paragraph).trim();
+  const m = s.match(/^(.*?)\*\*([^*]+)\*\*(.*)$/);
+  if (!m) return { before: '', answer: card.word, after: '' };
+  return { before: plainText(m[1]), answer: m[2], after: plainText(m[3]) };
+}
+
+export type WriteResult = 'right' | 'base' | 'almost' | 'wrong';
+
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+/**
+ * Checks a typed word: right (the form the sentence needs), base (the dictionary form, also accepted),
+ * almost (one letter off: a spelling slip) or wrong.
+ */
+export function checkWritten(typed: string, answer: string, word: string): WriteResult {
+  const t = typed.trim().toLowerCase().replace(/[.,!?;:"]+$/, '');
+  const a = answer.toLowerCase();
+  if (t === a) return 'right';
+  if (t === word.toLowerCase()) return 'base';
+  if (t.length > 2 && (editDistance(t, a) === 1 || editDistance(t, word.toLowerCase()) === 1)) return 'almost';
+  return 'wrong';
+}
+
+/** Letters for the "Spell it" button, read one by one. */
+export const spelled = (word: string) => word.toUpperCase().split('').join(', ');

@@ -141,10 +141,14 @@
   common meanings, Academic tag, listen (normal/slower), say the word or sentence with a score, "I know this".
 - Quiz after each session (meaning, Arabic, fill the word; a missed word is asked once more), then spaced
   review at 1, 3, 7, 14, 30 days. Progress is in `user.words`; `src/engine/words.ts` has the logic.
-- Data: `public/words/list.json` (order), `pack-NN.json` (cards), `manifest.json` (ready packs). Pack 1 is
-  written by hand. The other 49 come from `node scripts/generate-words.mjs --go` (needs ANTHROPIC_API_KEY in
-  .env.local; Message Batches; resumable; run without --go for the count and estimated cost), then commit
-  `public/words`. Opened packs stay available offline.
+- Data: `public/words/list.json` (order), `pack-NN.json` (cards), `manifest.json` (ready packs). All 50
+  packs are in: pack 1 hand-written; packs 2-50 built free from Tatoeba example sentences (with their Arabic
+  translations where they exist) and Wiktionary meanings and Arabic translations (via Kaikki), the Arabic word
+  picked by which candidate real Arabic translations use; 881 missing Arabic words and meanings and 17
+  sentences written by hand. `scripts/generate-words.mjs` can still rewrite packs with Claude if wanted.
+- Milestone every 100 words (50 in all). Learning and review are by writing the word (Lingvist-style): meaning in
+  English and Arabic, a sentence with a gap, first letter shown, Hint / Show me; a miss must be typed once; then
+  the full card with "Spell it" (letters read one by one). Opened packs stay available offline.
 
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
@@ -156,7 +160,8 @@
 - HD voices on the user's Azure resource; phone-line filter on real Azure audio; car mode on a phone.
 - TOEFL items, writing scores, explanations, Arabic, plan checks and score-report reading with the real Claude API (test mode uses fixed
   samples); how close mock estimates are to real results.
-- `scripts/generate-words.mjs` against the real API (no key yet); packs 2-50 don't exist until it runs.
+- Free word cards: meanings come from Wiktionary's sense order, so some are not the most common sense
+  (e.g. "wall"), and some Tatoeba Arabic translations have typos.
 - Spending numbers against real Anthropic/Azure bills (Azure rates are editable estimates); the mic check
   thresholds on a real microphone.
 

@@ -44,4 +44,4 @@ Code map: `src/content` (syllabus, sounds, TOEFL sets), `src/engine` (scoring, p
 `src/speech` (Azure + browser engines), `src/ui/pages`, `api/` (Vercel functions: sign-in check,
 Azure token, tutor), `shared/tasks.ts` (AI task shapes shared by browser and server).
 
-Word order in `public/words/list.json` is derived from [wordfreq](https://github.com/rspeer/wordfreq) frequency data (CC BY-SA 4.0) and is shared under the same license.
+Word data in `public/words/`: the order comes from [wordfreq](https://github.com/rspeer/wordfreq) frequency data (CC BY-SA 4.0); packs 2-50 use example sentences and their Arabic translations from [Tatoeba](https://tatoeba.org) (CC BY 2.0 FR) and meanings and Arabic translations from [Wiktionary](https://en.wiktionary.org) via [Kaikki](https://kaikki.org) (CC BY-SA 4.0). The word packs are shared under CC BY-SA 4.0.
