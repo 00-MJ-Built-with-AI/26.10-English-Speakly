@@ -32,6 +32,7 @@ import { QuestionBank } from './ui/toefl/Bank.tsx';
 import { FacultyEmailPage, KaustHome, PitchPage, SeminarPage, SopPage } from './ui/pages/Kaust.tsx';
 import { TrackerPage } from './ui/pages/KaustTracker.tsx';
 import { GoLive } from './ui/pages/GoLive.tsx';
+import { WordPack, WordsHome, WordsLearn, WordsReview } from './ui/pages/Words.tsx';
 import { Backup } from './ui/pages/Backup.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
@@ -136,6 +137,7 @@ const TABS: { to: string; label: string; icon: string; match: string[] }[] = [
   { to: '/today', label: 'Today', icon: 'home', match: ['today', ''] },
   { to: '/path', label: 'Path', icon: 'path', match: ['path', 'unit', 'grammar', 'placement'] },
   { to: '/practice', label: 'Practice', icon: 'spark', match: ['practice', 'review', 'roleplays', 'journal', 'better', 'vocab', 'retell', 'checkup', 'car', 'idiom', 'numbers', 'opinion', 'story', 'twisters'] },
+  { to: '/words', label: 'Words', icon: 'book', match: ['words'] },
   { to: '/tutor', label: 'Tutor', icon: 'chat', match: ['tutor', 'debate', 'phone', 'smalltalk', 'interview-prep'] },
   { to: '/toefl', label: 'TOEFL', icon: 'trophy', match: ['toefl', 'kaust'] },
   { to: '/progress', label: 'Progress', icon: 'chart', match: ['progress', 'recordings', 'achievements', 'report', 'backup'] },
@@ -309,6 +311,11 @@ function Shell() {
     case 'go-live':
       page = <GoLive />;
       break;
+    case 'words': {
+      const pack = Number(route.query.get('pack')) || undefined;
+      page = b === 'learn' ? <WordsLearn key={pack ?? 0} pack={pack} /> : b === 'review' ? <WordsReview /> : b === 'pack' && c ? <WordPack key={c} pack={Number(c)} /> : <WordsHome />;
+      break;
+    }
     case 'backup':
       page = <Backup />;
       break;
@@ -371,8 +378,8 @@ function Shell() {
         {page}
       </main>
       <nav className="tabbar">
-        {TABS.filter((t) => t.to !== '/toefl').map((t) => (
-          <a key={t.to} href={href(t.to)} className={t.match.includes(top) || (t.to === '/practice' && (top === 'toefl' || top === 'kaust')) ? 'active' : ''}>
+        {TABS.filter((t) => t.to !== '/toefl' && t.to !== '/words').map((t) => (
+          <a key={t.to} href={href(t.to)} className={t.match.includes(top) || (t.to === '/practice' && (top === 'toefl' || top === 'kaust' || top === 'words')) ? 'active' : ''}>
             <Icon name={t.icon} size={22} />
             {t.label}
           </a>

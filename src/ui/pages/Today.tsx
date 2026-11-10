@@ -5,7 +5,7 @@ import { promptOfTheDay } from '../../content/journal.ts';
 import { idiomOfTheDay } from '../../content/idioms.ts';
 import { CHECKUP_EVERY_DAYS } from '../../content/checkup.ts';
 import { currentUnit, unitState } from '../../engine/path.ts';
-import { minutesToday, streak } from '../../engine/progress.ts';
+import { dateKey, minutesToday, streak } from '../../engine/progress.ts';
 import { overallSpeaking, toeflBandOf } from '../../engine/scoring.ts';
 import { examPlan } from '../../engine/exam.ts';
 import { levelFromXp } from '../../engine/gamification.ts';
@@ -13,6 +13,7 @@ import { LEARNED_BOX, startOfDay } from '../../engine/srs.ts';
 import { computeFocus, mondayKey } from '../../engine/focus.ts';
 import { weakestSkill } from '../../engine/toeflSkill.ts';
 import { kaustReminders } from '../../engine/kaust.ts';
+import { dueRanks } from '../../engine/words.ts';
 import { todayKey } from '../../engine/toeflExtras.ts';
 import { todaysPlan } from '../toefl/Extras.tsx';
 import { SpendingBanner } from '../components/Spending.tsx';
@@ -110,6 +111,11 @@ export function Today() {
   const examWeeks = exam.phase === 'final' || exam.phase === 'focus';
   if (!examWeeks && dow % 2 === 0 && unit) plan.push({ to: `/tutor?kind=roleplay&unit=${unit.id}`, icon: 'users', title: `Role-play: ${unit.roleplay.title}`, desc: 'Real situation with the tutor', minutes: 8, done: didToday(['roleplay']) });
   else if (!examWeeks) plan.push({ to: '/tutor', icon: 'chat', title: 'Conversation with your tutor', desc: 'Hands-free, any topic', minutes: 8, done: didToday(['tutor']) });
+  const wordsDue = user.words ? dueRanks(user.words.items).length : 0;
+  const wordsToday = user.words?.today.date === dateKey() ? user.words.today.n : 0;
+  const wordsGoal = user.words?.daily ?? 20;
+  if (wordsDue > 0) plan.push({ to: '/words/review', icon: 'repeat', title: `Review ${Math.min(wordsDue, 30)} words`, desc: 'From the 5,000 most used words', minutes: Math.min(10, 2 + Math.ceil(wordsDue / 4)), done: false });
+  plan.push({ to: '/words/learn', icon: 'book', title: `Learn ${Math.max(0, wordsGoal - wordsToday) || wordsGoal} new words`, desc: `${wordsToday} of ${wordsGoal} today, with Arabic meanings`, minutes: 15, done: wordsToday >= wordsGoal });
   const idiom = idiomOfTheDay();
   plan.push({ to: '/idiom', icon: 'spark', title: `Idiom of the day: ${idiom.phrase}`, desc: idiom.meaning, minutes: 2, done: didToday(['idiom']) });
   if (lastCheckup !== undefined && (lastCheckup == null || Date.now() - lastCheckup > CHECKUP_EVERY_DAYS * 86_400_000)) {

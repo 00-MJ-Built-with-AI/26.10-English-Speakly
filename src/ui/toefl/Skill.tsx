@@ -86,6 +86,7 @@ function tools(section: Section, dueWords: number, openErrors: number): Tool[] {
     case 'reading':
       return [
         { to: '/toefl/reading/practice', icon: 'book', title: 'Test tasks', desc: 'Complete the Words, Daily Life, Academic Passage' },
+        { to: '/words', icon: 'book', title: '5,000 most used words', desc: 'In frequency order, with Arabic meanings' },
         { to: '/toefl/reading/vocab', icon: 'spark', title: 'Academic vocabulary', desc: dueWords ? `${dueWords} word${dueWords === 1 ? '' : 's'} due for review` : 'Learn words in context, spaced review' },
         { to: '/toefl/reading/paraphrase', icon: 'repeat', title: 'Paraphrase matching', desc: 'Same meaning, different words' },
         { to: '/toefl/reading/speed', icon: 'bolt', title: 'Speed and comprehension', desc: 'Words per minute plus questions' },

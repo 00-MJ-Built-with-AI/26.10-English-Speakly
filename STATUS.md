@@ -134,6 +134,18 @@
 - Backup and restore (`/backup`): one JSON file with the user document, history collections and the local
   question bank (no recording audio); restore replaces progress and merges history. 55 tests.
 
+## 5,000 words (2026-11-10)
+- `/words` (menu, Practice, TOEFL Reading, Today): the 5,000 most used base words in frequency order, in 50
+  packs of 100, with milestones at 100, 200, 500, 1,000 and on to 5,000. Daily goal 20 (10-50).
+- Each card: the word in a 2-3 sentence paragraph, English meaning, Arabic word and Arabic description, other
+  common meanings, Academic tag, listen (normal/slower), say the word or sentence with a score, "I know this".
+- Quiz after each session (meaning, Arabic, fill the word; a missed word is asked once more), then spaced
+  review at 1, 3, 7, 14, 30 days. Progress is in `user.words`; `src/engine/words.ts` has the logic.
+- Data: `public/words/list.json` (order), `pack-NN.json` (cards), `manifest.json` (ready packs). Pack 1 is
+  written by hand. The other 49 come from `node scripts/generate-words.mjs --go` (needs ANTHROPIC_API_KEY in
+  .env.local; Message Batches; resumable; run without --go for the count and estimated cost), then commit
+  `public/words`. Opened packs stay available offline.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.
@@ -144,6 +156,7 @@
 - HD voices on the user's Azure resource; phone-line filter on real Azure audio; car mode on a phone.
 - TOEFL items, writing scores, explanations, Arabic, plan checks and score-report reading with the real Claude API (test mode uses fixed
   samples); how close mock estimates are to real results.
+- `scripts/generate-words.mjs` against the real API (no key yet); packs 2-50 don't exist until it runs.
 - Spending numbers against real Anthropic/Azure bills (Azure rates are editable estimates); the mic check
   thresholds on a real microphone.
 

@@ -46,6 +46,18 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin || url.pathname.startsWith('/api/') || url.pathname === '/version.json') return;
+  if (url.pathname.startsWith('/words/')) {
+    e.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          if (res.ok) caches.open('speakly-words').then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req)),
+    );
+    return;
+  }
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).catch(() => caches.match('/')));
     return;

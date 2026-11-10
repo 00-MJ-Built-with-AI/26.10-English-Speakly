@@ -3,6 +3,7 @@ import type { HesitationStats } from '../engine/hesitation.ts';
 import { DEFAULT_VOICE } from '../speech/voices.ts';
 import type { MicCheckResult } from '../engine/audiocheck.ts';
 import type { Section, ToeflScore } from '../engine/toeflScale.ts';
+import type { WordsData } from '../engine/words.ts';
 
 export type { Level, CorrectionStyle, ErrorItem };
 
@@ -97,6 +98,8 @@ export interface UserDoc {
   interviewPrep?: { ad: string; cv: string };
   /** Last time the go-live check ran. */
   goLiveAt?: number;
+  /** The 5,000-word course: which words are known or in review. */
+  words?: WordsData;
   /** KAUST application coach: profile, professors of interest, statement drafts. */
   kaust?: KaustData;
   micCheck?: MicCheckResult;

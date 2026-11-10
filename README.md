@@ -17,6 +17,8 @@ and progress, Azure AI Speech for pronunciation scoring and the tutor's voice, C
 - **KAUST coach**: statement of purpose review, emails to professors, a faculty interview by voice, a
   2-minute research pitch with audience questions, and seminar discussions. An application tracker with deadlines,
   documents and recommenders (with a brief for each).
+- **5,000 words**: the most used English words in frequency order, each in a short paragraph with English and
+  Arabic meanings, listening, speaking, quizzes and spaced review.
 - **Getting set up**: a go-live check that tests every real service, and backup / restore of all progress.
 - **More practice**: fast-track level test, daily speaking journal, "say it better" from Arabic,
   personal phrase bank, your own texts, filler and pause tracker, intonation graph, mouth diagrams.
@@ -41,3 +43,5 @@ Setup of Firebase, Azure and Anthropic: see [SETUP.md](SETUP.md). Without them t
 Code map: `src/content` (syllabus, sounds, TOEFL sets), `src/engine` (scoring, path, review schedule),
 `src/speech` (Azure + browser engines), `src/ui/pages`, `api/` (Vercel functions: sign-in check,
 Azure token, tutor), `shared/tasks.ts` (AI task shapes shared by browser and server).
+
+Word order in `public/words/list.json` is derived from [wordfreq](https://github.com/rspeer/wordfreq) frequency data (CC BY-SA 4.0) and is shared under the same license.
