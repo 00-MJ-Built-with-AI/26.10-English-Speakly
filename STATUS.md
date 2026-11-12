@@ -150,6 +150,20 @@
   English and Arabic, a sentence with a gap, first letter shown, Hint / Show me; a miss must be typed once; then
   the full card with "Spell it" (letters read one by one). Opened packs stay available offline.
 
+## Words round 2 (2026-11-12)
+- Quick scan (`/words/scan`): 20 words per screen, tap the unknown ones, the rest become known after a
+  two-question check (a failed check leaves the word to learn).
+- Hear it, then write it (`/words/listen`): recent words are spoken (normal, slower, in a sentence); a miss
+  brings the word back for review tomorrow.
+- Tutor conversations use up to 10 new words (`ChatInput.newWords`, toggle on the Words page); words the
+  learner uses outside corrected phrases count as a correct review and are listed on the report.
+- Cards show common partners (from Tatoeba neighbors, most used real form) and word families (Wiktionary
+  derived/related, compounds dropped): 3,591 and 2,492 of 5,000 cards.
+- Fix this card (saved per user in `words.fixes`, applied everywhere), misses and daily history
+  (`src/engine/wordStats.ts`), `/words/stats` (vocabulary estimate, words per week, hardest words) and
+  `/words/hard` (write the hardest words again).
+- Use it in a sentence: write or say a sentence, AI feedback (`wordSentence` task). 73 tests.
+
 ## Not verified yet
 - Real microphone, Azure pronunciation scores and voices, the Claude tutor, Firebase sign-in and sync:
   all need the keys from SETUP.md. First real run should be on Chrome with headphones.

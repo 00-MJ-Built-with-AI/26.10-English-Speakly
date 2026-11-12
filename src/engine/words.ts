@@ -22,6 +22,10 @@ export interface WordCard {
   other: { meaning: string; example: string; arabic: string }[];
   /** 'open': example sentences from Tatoeba and meanings from Wiktionary (credited on the card). */
   source?: 'open';
+  /** Related words of the same family (decide: decision, decisive). */
+  family?: string[];
+  /** Common partners from real sentences (make a decision, depend on). */
+  partners?: string[];
 }
 
 /** box: KNOWN, or 0-6 (6 = learned for good); due is a day number. */
@@ -31,6 +35,14 @@ export interface WordsData {
   daily: number;
   items: Record<string, WordState>;
   today: { date: string; n: number };
+  /** The learner's corrections to cards, by rank. */
+  fixes?: Record<string, Partial<Pick<WordCard, 'english' | 'arabic' | 'arabicDesc'>>>;
+  /** How often each word was missed. */
+  misses?: Record<string, number>;
+  /** New words studied per day (YYYY-MM-DD). */
+  history?: Record<string, number>;
+  /** Bring recent words into tutor conversations (default on). */
+  tutorWords?: boolean;
 }
 
 export const emptyWords = (): WordsData => ({ daily: 20, items: {}, today: { date: '', n: 0 } });

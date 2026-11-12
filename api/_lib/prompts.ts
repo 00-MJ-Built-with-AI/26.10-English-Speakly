@@ -79,6 +79,11 @@ export function chatSystem(input: ChatInput): string {
     ].filter(Boolean);
     if (bits.length) parts.push(`Lesson targets (steer the conversation so the learner needs these): ${bits.join('. ')}.`);
   }
+  if (input.newWords?.length) {
+    parts.push(
+      `The learner is learning these words this week: ${input.newWords.join(', ')}. Use two or three of them naturally in what you say, and now and then ask a question that invites the learner to use one. Don't quiz them on the words or explain them unless asked.`,
+    );
+  }
   if (input.memory) {
     const m = input.memory;
     const lines = [

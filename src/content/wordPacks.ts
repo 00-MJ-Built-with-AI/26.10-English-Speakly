@@ -3,6 +3,15 @@ import { packOf, PACK_SIZE, type WordCard } from '../engine/words.ts';
 
 const packs = new Map<number, Promise<WordCard[]>>();
 let manifest: Promise<Set<number>> | undefined;
+let list: Promise<string[]> | undefined;
+
+/** The 5,000 words in frequency order (index 0 = rank 1). */
+export function wordList(): Promise<string[]> {
+  list ??= fetch('/words/list.json')
+    .then((r) => (r.ok ? (r.json() as Promise<string[]>) : []))
+    .catch(() => []);
+  return list;
+}
 
 /** Which packs have been written so far. */
 export function availablePacks(): Promise<Set<number>> {

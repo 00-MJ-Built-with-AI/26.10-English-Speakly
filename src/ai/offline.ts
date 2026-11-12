@@ -330,6 +330,19 @@ export async function offlineTask<K extends TaskName>(task: K, input: TaskMap[K]
         facts: ['(Test mode) Facts to cite appear with the AI key.'],
       } as TaskMap[K][1];
     }
+    case 'wordSentence': {
+      const t = String(i.sentence ?? '').trim();
+      const word = String(i.word ?? '').toLowerCase();
+      const has = t.toLowerCase().includes(word.slice(0, Math.max(3, word.length - 2)));
+      const ok = has && countWords(t) >= 4;
+      return {
+        correct: ok,
+        natural: ok,
+        feedback: ok ? `(Test mode) You used "${i.word}" in a full sentence. Real feedback appears once the AI key is added.` : `(Test mode) Use "${i.word}" in a full sentence of four words or more.`,
+        better: t,
+        arabic: '',
+      } as TaskMap[K][1];
+    }
     case 'qa':
       return { score: Math.min(5, 1 + Math.floor(countWords(String(i.transcript ?? '')) / 25)), feedback: '(Test mode) Real feedback appears with the AI key.', better: '(Test mode) A model answer appears with the AI key. Shape: direct answer, one reason or example, honest limit.' } as TaskMap[K][1];
     case 'speakCompare': {

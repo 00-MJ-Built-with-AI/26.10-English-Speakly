@@ -1,4 +1,4 @@
-import type { ApplicantProfile, FacultyEmailInput, PitchInput, QaInput, RecBriefInput, SopReviewInput } from '../../shared/kaust.js';
+import type { ApplicantProfile, FacultyEmailInput, PitchInput, QaInput, RecBriefInput, SopReviewInput, WordSentenceInput } from '../../shared/kaust.js';
 
 export const KAUST_SYSTEM = `You coach an Arabic-speaking applicant to KAUST (King Abdullah University of Science and Technology, a graduate research university in Saudi Arabia) on academic English and their application. Be honest and specific, like a strong faculty mentor. Never invent facts about the applicant: use only what they gave you, and mark anything they must fill in with [brackets]. Do not invent facts about KAUST faculty or labs either; if a detail is needed, ask the applicant to check it.`;
 
@@ -26,4 +26,8 @@ export function qaPrompt(i: QaInput): string {
 export function recBriefPrompt(i: RecBriefInput): string {
   const r = i.recommender;
   return `${profile(i.profile)}\n\nRecommender: ${r.name} (${r.relation}). What the applicant did with them: ${r.together || 'not given'}. Letter deadline: ${r.deadline || 'not given'}. Status: ${r.status}.\n\nWrite a recommender brief for a KAUST graduate application: ${r.status === 'not-asked' ? 'a short email politely asking whether they could write a strong letter' : r.status === 'submitted' ? 'a short thank-you email' : 'a short email thanking them for agreeing and sharing the brief and deadline'}, then 3-5 highlights they could speak to (each tied to something concrete they saw), and the facts they may want to cite. Use only the facts given; mark anything to fill in with [brackets].`;
+}
+
+export function wordSentencePrompt(i: WordSentenceInput): string {
+  return `An Arabic-speaking learner of English is practising the word "${i.word}" (meaning: ${i.meaning}). They wrote or said this sentence:\n"${i.sentence}"\n\nIs the word used correctly and naturally? Be encouraging and brief. If the sentence is fine, say so and keep "better" the same. Judge the use of the word first; mention other grammar mistakes only briefly.`;
 }

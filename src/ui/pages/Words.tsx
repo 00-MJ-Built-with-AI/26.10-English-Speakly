@@ -32,8 +32,11 @@ import { useApp } from '../../lib/store.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { MicControl, ScoreChips, useElapsed, useListen, useSpeak, WordScores } from '../components/speaking.tsx';
 import type { Assessment } from '../../speech/index.ts';
+import type { WordSentence } from '../../../shared/kaust.ts';
+import { aiTask } from '../../lib/api.ts';
+import { applyFix, noteLearned, noteMiss } from '../../engine/wordStats.ts';
 
-function useWords(): [WordsData, (fn: (w: WordsData) => void) => void] {
+export function useWords(): [WordsData, (fn: (w: WordsData) => void) => void] {
   const { user, update } = useApp();
   return [user.words ?? emptyWords(), (fn) => update((u) => fn((u.words ??= emptyWords())))];
 }
@@ -100,6 +103,21 @@ export function WordsHome() {
             <Icon name="repeat" size={16} /> Review ({due})
           </button>
         </div>
+        <div className="row">
+          <a className="btn small" href={href('/words/scan')}>
+            <Icon name="bolt" size={14} /> Quick scan: mark words you know
+          </a>
+          <a className="btn small" href={href('/words/listen')}>
+            <Icon name="ear" size={14} /> Hear it, then write it
+          </a>
+          <a className="btn small" href={href('/words/stats')}>
+            <Icon name="chart" size={14} /> Your words and hardest words
+          </a>
+        </div>
+        <label className="row small">
+          <input type="checkbox" checked={w.tutorWords !== false} onChange={(e) => set((x) => (x.tutorWords = e.target.checked))} />
+          <span>The AI tutor uses my new words in conversations (words I use count as reviewed)</span>
+        </label>
       </div>
       <div className="card stack">
         <div className="spread">
@@ -275,7 +293,7 @@ function SayIt({ reference, label }: { reference: string; label: string }) {
 
 /** The word in context, English meaning, Arabic meaning, other meanings, listening and speaking. */
 /** Reads the word letter by letter and shows the letters while it does. */
-function SpellButton({ word }: { word: string }) {
+export function SpellButton({ word }: { word: string }) {
   const { speak, speaking } = useSpeak();
   const [on, setOn] = useState(false);
   return (
@@ -304,7 +322,9 @@ function SpellButton({ word }: { word: string }) {
  * Lingvist-style: the meaning in English and Arabic and a sentence with a gap; type the word.
  * A miss shows the answer, and it must be typed correctly once before moving on.
  */
-function WriteWord({ card, onDone, onKnown }: { card: WordCard; onDone: (firstTry: boolean) => void; onKnown?: () => void }) {
+function WriteWord({ card: raw, onDone, onKnown }: { card: WordCard; onDone: (firstTry: boolean) => void; onKnown?: () => void }) {
+  const [w] = useWords();
+  const card = applyFix(raw, w.fixes);
   const gap = useMemo(() => gapSentence(card), [card]);
   const [typed, setTyped] = useState('');
   const [hint, setHint] = useState(1);
@@ -413,7 +433,10 @@ function WriteWord({ card, onDone, onKnown }: { card: WordCard; onDone: (firstTr
   );
 }
 
-function CardBody({ card }: { card: WordCard }) {
+function CardBody({ card: raw }: { card: WordCard }) {
+  const [w, set] = useWords();
+  const card = applyFix(raw, w.fixes);
+  const [fixing, setFixing] = useState(false);
   const { speak, speaking, stop } = useSpeak();
   const sentence = useMemo(() => keySentence(card.paragraph), [card]);
   useEffect(() => stop, [stop]);
@@ -465,9 +488,60 @@ function CardBody({ card }: { card: WordCard }) {
           ))}
         </div>
       )}
+      {(card.family?.length || card.partners?.length) && (
+        <div className="small stack" style={{ gap: 6 }}>
+          {card.partners?.length ? (
+            <div>
+              <div className="section-title">Often used with</div>
+              <div className="row" style={{ gap: 6 }}>
+                {card.partners.map((p) => (
+                  <span key={p} className="chip brand">
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {card.family?.length ? (
+            <div>
+              <div className="section-title">Word family</div>
+              <div className="row" style={{ gap: 6 }}>
+                {card.family.map((f) => (
+                  <span key={f} className="chip">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
       <div className="row" style={{ alignItems: 'flex-start' }}>
         <SayIt key={`w-${card.rank}`} reference={card.word} label="Say the word" />
         <SayIt key={`s-${card.rank}`} reference={sentence} label="Say the sentence" />
+      </div>
+      <UseInSentence key={`u-${card.rank}`} card={card} />
+      <div>
+        <button className="btn small ghost" onClick={() => setFixing(!fixing)}>
+          {w.fixes?.[card.rank] ? 'Edit your fix' : 'Fix this card'}
+        </button>
+        {fixing && (
+          <FixForm
+            card={card}
+            fixed={Boolean(w.fixes?.[card.rank])}
+            onSave={(f) => {
+              set((x) => (x.fixes = { ...x.fixes, [card.rank]: f }));
+              setFixing(false);
+            }}
+            onReset={() => {
+              set((x) => {
+                const { [card.rank]: _gone, ...rest } = x.fixes ?? {};
+                x.fixes = rest;
+              });
+              setFixing(false);
+            }}
+          />
+        )}
       </div>
       {card.source === 'open' && (
         <div className="small faint">
@@ -480,6 +554,112 @@ function CardBody({ card }: { card: WordCard }) {
             Wiktionary
           </a>{' '}
           (CC BY-SA).
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Your own correction of a card's meaning or Arabic; it replaces the card's text everywhere. */
+function FixForm({ card, fixed, onSave, onReset }: { card: WordCard; fixed: boolean; onSave: (f: { english: string; arabic: string; arabicDesc: string }) => void; onReset: () => void }) {
+  const [english, setEnglish] = useState(card.english);
+  const [arabic, setArabic] = useState(card.arabic);
+  const [arabicDesc, setArabicDesc] = useState(card.arabicDesc);
+  return (
+    <div className="soft stack" style={{ marginTop: 8 }}>
+      <label className="field">
+        <span>English meaning</span>
+        <input value={english} onChange={(e) => setEnglish(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Arabic</span>
+        <input dir="rtl" lang="ar" value={arabic} onChange={(e) => setArabic(e.target.value)} />
+      </label>
+      <label className="field">
+        <span>Arabic description</span>
+        <input dir="rtl" lang="ar" value={arabicDesc} onChange={(e) => setArabicDesc(e.target.value)} />
+      </label>
+      <div className="row">
+        <button className="btn small primary" disabled={!english.trim() || !arabic.trim()} onClick={() => onSave({ english: english.trim(), arabic: arabic.trim(), arabicDesc: arabicDesc.trim() })}>
+          Save my fix
+        </button>
+        {fixed && (
+          <button className="btn small ghost" onClick={onReset}>
+            Go back to the original
+          </button>
+        )}
+      </div>
+      <div className="small faint">Saved to your account; it only changes the card for you.</div>
+    </div>
+  );
+}
+
+/** Write or say your own sentence with the word; the AI says whether it is used correctly. */
+function UseInSentence({ card }: { card: WordCard }) {
+  const mic = useListen();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [fb, setFb] = useState<WordSentence | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function check() {
+    setBusy(true);
+    setError(null);
+    try {
+      setFb(await aiTask('wordSentence', { word: card.word, meaning: card.english, sentence: text.trim() }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function say() {
+    const a = await mic.listen({ maxSeconds: 15, endSilenceMs: 2500, noSpeechMs: 8000 });
+    if (a?.text) setText(a.text);
+  }
+  if (!open) {
+    return (
+      <button className="btn small" onClick={() => setOpen(true)} style={{ alignSelf: 'flex-start' }}>
+        <Icon name="chat" size={14} /> Use it in a sentence
+      </button>
+    );
+  }
+  return (
+    <div className="soft stack">
+      <div className="small muted">Write or say your own sentence with “{card.word}”.</div>
+      <div className="row">
+        <input value={text} onChange={(e) => (setText(e.target.value), setFb(null))} placeholder={`A sentence with ${card.word}…`} style={{ flex: 1, minWidth: 180 }} />
+        <button className="btn small" onClick={say} disabled={mic.state !== 'idle'} aria-label="Say it">
+          <Icon name="mic" size={14} />
+        </button>
+        <button className="btn small primary" onClick={check} disabled={busy || text.trim().split(/\s+/).length < 3}>
+          {busy ? 'Checking…' : 'Check'}
+        </button>
+      </div>
+      {mic.state === 'listening' && (
+        <>
+          <div className="partial">{mic.partial}</div>
+          {!mic.canListen && <MicControl {...mic} onStart={() => {}} onStop={mic.stop} onTyped={mic.submitTyped} canListen={false} />}
+        </>
+      )}
+      {error && <div className="banner error">{error}</div>}
+      {fb && (
+        <div className="stack fade-in small" style={{ gap: 6 }}>
+          <div className="row">
+            <span className={`chip ${fb.correct ? 'good' : 'bad'}`}>{fb.correct ? 'Correct use' : 'Not quite'}</span>
+            {fb.correct && !fb.natural && <span className="chip ok">Could sound more natural</span>}
+          </div>
+          <div>{fb.feedback}</div>
+          {fb.better && fb.better !== text.trim() && (
+            <div>
+              <b>Better:</b> {fb.better}
+            </div>
+          )}
+          {fb.arabic && (
+            <div dir="rtl" lang="ar" style={{ textAlign: 'right' }}>
+              {fb.arabic}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -539,6 +719,7 @@ export function WordsLearn({ pack }: { pack?: number }) {
     set((x) => {
       x.items[card.rank] = [0, 0];
       x.today = { date: today, n: (x.today.date === today ? x.today.n : 0) + 1 };
+      noteLearned(x);
     });
     const list = [...studied, card];
     setStudied(list);
@@ -548,7 +729,10 @@ export function WordsLearn({ pack }: { pack?: number }) {
 
   function finish(results: Map<number, boolean>) {
     set((x) => {
-      for (const [rank, right] of results) x.items[rank] = gradeWord(x.items[rank], right);
+      for (const [rank, right] of results) {
+        x.items[rank] = gradeWord(x.items[rank], right);
+        if (!right) noteMiss(x, rank);
+      }
     });
     app.logAttempt({ at: Date.now(), kind: 'vocab', title: `Words: ${results.size} new`, seconds: elapsed(), scores: {}, detail: { words: results.size } });
     setPhase('done');
@@ -619,11 +803,13 @@ export function WordsLearn({ pack }: { pack?: number }) {
 const QUIZ_LABEL = { meaning: 'What does this word mean?', arabic: 'Choose the Arabic meaning', cloze: 'Which word completes the text?' } as const;
 
 /** Multiple choice over the given words. With `requeue`, a missed word is asked once more at the end. */
-function Quiz({ title, cards, onDone, requeue = false }: { title: string; cards: WordCard[]; onDone: (first: Map<number, boolean>) => void; requeue?: boolean }) {
+function Quiz({ title, cards: raw, onDone, requeue = false }: { title: string; cards: WordCard[]; onDone: (first: Map<number, boolean>) => void; requeue?: boolean }) {
+  const [w] = useWords();
+  const cards = useMemo(() => raw.map((c) => applyFix(c, w.fixes)), [raw]);
   const [pool, setPool] = useState<WordCard[]>(cards);
   useEffect(() => {
     const packs = [...new Set(cards.map((c) => Math.ceil(c.rank / PACK_SIZE)))];
-    Promise.all(packs.map(loadPack)).then((p) => setPool(p.flat()));
+    Promise.all(packs.map(loadPack)).then((p) => setPool(p.flat().map((c) => applyFix(c, w.fixes))));
   }, [cards]);
   const [queue, setQueue] = useState(() => cards.map((c) => ({ card: c, turn: 0 })));
   const [picked, setPicked] = useState<number | null>(null);
@@ -706,7 +892,10 @@ export function WordsReview() {
   }, [ranks]);
   function finish(results: Map<number, boolean>) {
     set((x) => {
-      for (const [rank, right] of results) x.items[rank] = gradeWord(x.items[rank], right);
+      for (const [rank, right] of results) {
+        x.items[rank] = gradeWord(x.items[rank], right);
+        if (!right) noteMiss(x, rank);
+      }
     });
     app.logAttempt({ at: Date.now(), kind: 'vocab', title: `Word review: ${results.size}`, seconds: elapsed(), scores: {}, detail: { words: results.size } });
     setScore({ right: [...results.values()].filter(Boolean).length, total: results.size });
@@ -734,7 +923,7 @@ export function WordsReview() {
 }
 
 /** Reviews by writing each word; right on the first try counts as known for spacing. */
-function WriteReview({ cards, onDone }: { cards: WordCard[]; onDone: (first: Map<number, boolean>) => void }) {
+export function WriteReview({ cards, onDone, title = 'Word review' }: { cards: WordCard[]; onDone: (first: Map<number, boolean>) => void; title?: string }) {
   const [i, setI] = useState(0);
   const [answered, setAnswered] = useState(false);
   const first = useRef(new Map<number, boolean>());
@@ -747,7 +936,7 @@ function WriteReview({ cards, onDone }: { cards: WordCard[]; onDone: (first: Map
   }
   return (
     <div className="stack">
-      <h1>Word review</h1>
+      <h1>{title}</h1>
       <div className="small muted">
         {i + 1} of {cards.length}
       </div>

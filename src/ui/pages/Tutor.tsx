@@ -1,3 +1,6 @@
+import { tutorWordRanks, wordsUsed } from '../../engine/wordStats.ts';
+import { gradeWord } from '../../engine/words.ts';
+import { wordList } from '../../content/wordPacks.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { ChatInput, ChatKind, CorrectionStyle, ErrorItem, ReportResult, Scenario, TutorMemory } from '../../../shared/tasks.ts';
 import { scenarioById } from '../../content/scenarios.ts';
@@ -152,6 +155,16 @@ export function Tutor({ query }: { query: URLSearchParams }) {
     return () => clearInterval(t);
   }, [phone, phase]);
 
+  // Words from the 5,000-word course that are still new: the tutor works them into the conversation.
+  const [newWords, setNewWords] = useState<{ rank: number; word: string }[]>([]);
+  useEffect(() => {
+    if (user.words?.tutorWords === false) return;
+    const ranks = tutorWordRanks(user.words);
+    if (!ranks.length) return;
+    wordList().then((list) => setNewWords(ranks.map((r) => ({ rank: r, word: list[r - 1] })).filter((x) => x.word)));
+  }, []); // once per conversation
+  const [usedWords, setUsedWords] = useState<string[]>([]);
+
   const chatInput = (): ChatInput => ({
       level,
       kind: kind === 'unit' ? 'roleplay' : kind,
@@ -162,6 +175,7 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       job: job ? { ad: job.ad, cv: job.cv } : undefined,
       research,
       seminar,
+      newWords: newWords.length ? newWords.map((x) => x.word) : undefined,
       targets: unit ? { grammar: unit.grammar.name, functions: unit.functions, vocab: unit.vocab } : undefined,
       goals: ['work meetings', 'the new TOEFL iBT'],
       correction,
@@ -354,6 +368,16 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       const facts = r?.learnerFacts ?? [];
       app.update((u) => u.settings.tutorMemory && rememberSession(u, facts, sessionTitle.replace(/^Conversation: /, '')));
     }
+    // New words the learner used, and not inside a corrected phrase, count as a correct review.
+    const correctedText = (r?.corrections ?? []).map((c) => c.said).join(' ');
+    const used = wordsUsed(learner.map((t) => t.text).join(' '), newWords).filter((rank) => !wordsUsed(correctedText, newWords).includes(rank));
+    if (used.length) {
+      app.update((u) => {
+        if (!u.words) return;
+        for (const rank of used) u.words.items[rank] = gradeWord(u.words.items[rank], true);
+      });
+      setUsedWords(newWords.filter((x) => used.includes(x.rank)).map((x) => x.word));
+    }
     setReport(r);
     setPhase('report');
   }
@@ -527,6 +551,11 @@ export function Tutor({ query }: { query: URLSearchParams }) {
       <div className="stack">
         <h1>Your report</h1>
         {error && <div className="banner error">{error}</div>}
+        {usedWords.length > 0 && (
+          <div className="banner info">
+            You used {usedWords.length} of your new word{usedWords.length === 1 ? '' : 's'}: <b>{usedWords.join(', ')}</b>. They count as reviewed.
+          </div>
+        )}
         {report ? (
           <>
             <div className="card">

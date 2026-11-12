@@ -33,6 +33,7 @@ import { FacultyEmailPage, KaustHome, PitchPage, SeminarPage, SopPage } from './
 import { TrackerPage } from './ui/pages/KaustTracker.tsx';
 import { GoLive } from './ui/pages/GoLive.tsx';
 import { WordPack, WordsHome, WordsLearn, WordsReview } from './ui/pages/Words.tsx';
+import { HardWords, ListenWrite, QuickScan, WordStats } from './ui/pages/WordsMore.tsx';
 import { Backup } from './ui/pages/Backup.tsx';
 import { ProgressPage } from './ui/pages/Progress.tsx';
 import { Recordings } from './ui/pages/Recordings.tsx';
@@ -313,7 +314,7 @@ function Shell() {
       break;
     case 'words': {
       const pack = Number(route.query.get('pack')) || undefined;
-      page = b === 'learn' ? <WordsLearn key={pack ?? 0} pack={pack} /> : b === 'review' ? <WordsReview /> : b === 'pack' && c ? <WordPack key={c} pack={Number(c)} /> : <WordsHome />;
+      page = b === 'learn' ? <WordsLearn key={pack ?? 0} pack={pack} /> : b === 'review' ? <WordsReview /> : b === 'scan' ? <QuickScan /> : b === 'listen' ? <ListenWrite /> : b === 'stats' ? <WordStats /> : b === 'hard' ? <HardWords /> : b === 'pack' && c ? <WordPack key={c} pack={Number(c)} /> : <WordsHome />;
       break;
     }
     case 'backup':

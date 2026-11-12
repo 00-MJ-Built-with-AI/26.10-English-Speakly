@@ -1,4 +1,4 @@
-/** Shapes for the KAUST application coach and grad-school English practice. */
+/** Shapes for the KAUST application coach, grad-school English practice and word sentences. */
 import { z } from 'zod';
 
 export interface ApplicantProfile {
@@ -81,4 +81,19 @@ export type RecBrief = z.infer<typeof RecBrief>;
 export interface RecBriefInput {
   recommender: { name: string; relation: string; together: string; deadline: string; status: string };
   profile: ApplicantProfile;
+}
+
+/** Feedback on a sentence the learner made with a new word. */
+export const WordSentence = z.object({
+  correct: z.boolean().describe('Is the word used correctly, with the right meaning and grammar?'),
+  natural: z.boolean().describe('Would a native speaker say it this way?'),
+  feedback: z.string().describe('One or two short sentences'),
+  better: z.string().describe('The learner\'s sentence corrected and made natural, same idea; identical if already good'),
+  arabic: z.string().describe('A short note in simple Modern Standard Arabic if there was a mistake, else an empty string'),
+});
+export type WordSentence = z.infer<typeof WordSentence>;
+export interface WordSentenceInput {
+  word: string;
+  meaning: string;
+  sentence: string;
 }

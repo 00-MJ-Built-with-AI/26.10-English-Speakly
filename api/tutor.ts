@@ -38,8 +38,8 @@ import {
 import { errorResponse, HttpError, requireUser } from './_lib/auth.js';
 import { chatSystem, generatePrompt, TASK_SYSTEM } from './_lib/prompts.js';
 import { Arabic, Explain, GEN, NotesFeedback, PlanCheck, ScoreReport, SpeakCompare, WritingScore, type ArabicInput, type ExplainInput, type NotesFeedbackInput, type PlanCheckInput, type ScoreReportInput, type SpeakCompareInput, type ToeflGenInput, type WritingInput } from '../shared/toefl.js';
-import { facultyEmailPrompt, KAUST_SYSTEM, pitchPrompt, qaPrompt, recBriefPrompt, sopPrompt } from './_lib/kaustPrompts.js';
-import { FacultyEmail, PitchFeedback, QaFeedback, RecBrief, SopReview, type FacultyEmailInput, type PitchInput, type QaInput, type RecBriefInput, type SopReviewInput } from '../shared/kaust.js';
+import { facultyEmailPrompt, KAUST_SYSTEM, pitchPrompt, qaPrompt, recBriefPrompt, sopPrompt, wordSentencePrompt } from './_lib/kaustPrompts.js';
+import { FacultyEmail, PitchFeedback, QaFeedback, RecBrief, SopReview, WordSentence, type FacultyEmailInput, type PitchInput, type QaInput, type RecBriefInput, type SopReviewInput, type WordSentenceInput } from '../shared/kaust.js';
 import { arabicPrompt, explainPrompt, notesFeedbackPrompt, planCheckPrompt, speakComparePrompt, TOEFL_ITEM_SYSTEM, toeflGenPrompt, writingPrompt } from './_lib/toeflPrompts.js';
 
 const MODEL = process.env.TUTOR_MODEL || 'claude-opus-5-5';
@@ -214,6 +214,7 @@ Give exactly 3 natural spoken American English versions: everyday, professional 
   pitch: (i: PitchInput) => structured(PitchFeedback, pitchPrompt(i), 'medium', KAUST_SYSTEM),
   qa: (i: QaInput) => structured(QaFeedback, qaPrompt(i), 'low', KAUST_SYSTEM),
   recBrief: (i: RecBriefInput) => structured(RecBrief, recBriefPrompt(i), 'low', KAUST_SYSTEM),
+  wordSentence: (i: WordSentenceInput) => structured(WordSentence, wordSentencePrompt(i), 'low'),
   scoreReport: (i: ScoreReportInput) =>
     structured(
       ScoreReport,
